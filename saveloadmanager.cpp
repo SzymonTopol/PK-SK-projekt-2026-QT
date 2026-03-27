@@ -5,7 +5,7 @@ SaveLoadManager::SaveLoadManager() {}
 bool SaveLoadManager::writeJsonToFile(const QString& path, const QJsonObject& json)
 {
     QFile file(path);
-    if (file.open(QIODevice::WriteOnly))
+    if (file.open(QIODevice::WriteOnly)) // tu poprawka do zrobienia
     {
         qDebug() << "SaveLoadManager: Błąd otwarcia pliku do zapisu!!!";
         return false;

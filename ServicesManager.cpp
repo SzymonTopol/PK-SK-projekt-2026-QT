@@ -24,7 +24,7 @@ void ServicesManager::startSimulation() {
 
 void ServicesManager::stopSimulation() {
     if (m_timer->isActive()) {
-        m_timer->disconnect();
+        m_timer->disconnect(); // tutaj też poprawka
     }
 }
 
