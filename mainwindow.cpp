@@ -175,7 +175,7 @@ void MainWindow::on_btn_intergral_reset_clicked()
 
 //=====GENERATOR=====
 
-//checkbox do ustawienia stałej lub generowanej wartości zadanej
+//checkbox do ustawienia stałej lub generowanej wartości zadanej, dokładniej to checkbox od włączenia generatora używania
 void MainWindow::on_checkBox_setValue_toggled(bool checked)
 {
     //wartoś zadana stała

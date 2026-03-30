@@ -65,6 +65,6 @@ double FunctionGenerator::get_value(unsigned int step_count) {
     case FunctionType::SQUARE:
         return square_generator(step_count);
     default:
-        return 0.0; // to do: obsługa błędu
+        return 0.0; // to do: obsługa błędu XD
     }
 }

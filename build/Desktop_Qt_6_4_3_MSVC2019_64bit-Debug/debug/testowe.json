@@ -1,0 +1,39 @@
+{
+    "arx": {
+        "a": [
+            -0.4,
+            -0.6,
+            0
+        ],
+        "b": [
+            0.6,
+            4,
+            0
+        ],
+        "border_u": {
+            "bottom": -10,
+            "top": 10
+        },
+        "border_y": {
+            "bottom": -10,
+            "top": 10
+        },
+        "delay": 1,
+        "noise": 0
+    },
+    "gen": {
+        "amp": 1,
+        "fill": 0.5,
+        "freq": 10,
+        "offset": 0,
+        "sample": 50,
+        "type": 1,
+        "use": true
+    },
+    "pid": {
+        "method": 0,
+        "p": 0.5,
+        "td": 0,
+        "ti": 5
+    }
+}
