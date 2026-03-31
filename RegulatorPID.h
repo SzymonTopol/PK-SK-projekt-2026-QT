@@ -1,6 +1,8 @@
 #ifndef REGULATORPID_H
 #define REGULATORPID_H
 
+#include <QByteArray>
+
 class RegulatorPID {
 public:
     //enum do wyboru trybu liczenia ca�ki
@@ -49,6 +51,13 @@ public:
 
     // Metoda resetuj�ca stan wewn�trzny regulatora
     void reset();
+
+    // Dodane do sieci
+
+
+
+    QByteArray serializeConfig() const;
+    void deserializeConfig(const QByteArray& buf);
 };
 
 

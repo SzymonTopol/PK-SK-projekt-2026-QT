@@ -4,6 +4,7 @@
 #include <vector>
 #include <deque>
 #include <random>
+#include <QByteArray>
 
 struct Borders {
 
@@ -50,6 +51,10 @@ public:
     double simulate(double input_u);
 
     void reset();
+
+    // Dodane do sieci
+    QByteArray serializeConfig() const;
+    void deserializeConfig(const QByteArray& buf);
 };
 
 #endif // ARX_H

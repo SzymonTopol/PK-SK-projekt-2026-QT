@@ -171,6 +171,9 @@ void MainWindow::on_btn_intergral_reset_clicked()
     ServicesManager &sm = ServicesManager::getInstance();
     sm.resetPidIntegral();
     qDebug() << "Pamięć całki regulatora PID zresetowana.";
+
+    //testowe wywołanie, tylko na moment
+    ServicesManager::getInstance().testSerialization();
 }
 
 //=====GENERATOR=====

@@ -9,6 +9,8 @@
 #include <vector>
 #include <QDebug>
 
+#include "Networkmanager.h"
+
 class ServicesManager : public QObject {
     Q_OBJECT
 public:
@@ -127,6 +129,10 @@ public:
         qDebug() << m_gen_fill;
     }
 
+    //Pod przesyłanie sieciowe
+    UAR* getUar() { return m_uar.get(); }
+    void testSerialization();
+
 signals:
     void SimulationUpdated();
 private slots:
@@ -165,6 +171,8 @@ private:
 
     // glowny uar
     std::unique_ptr<UAR> m_uar = nullptr;
+
+    std::unique_ptr<NetworkManager> m_networkManager;
 };
 
 

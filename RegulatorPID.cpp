@@ -114,3 +114,28 @@ void RegulatorPID::reset()
     sumError = 0.0;
     prevError = 0.0;
 }
+
+QByteArray RegulatorPID::serializeConfig() const {
+    // Obliczamy rozmiar na miarę
+    size_t size = sizeof(k) + sizeof(Ti) + sizeof(Td) + sizeof(liczCalk);
+    QByteArray buf;
+    buf.resize(size);
+    char* ptr = buf.data();
+
+    // Kopiowanie binarne poszczególnych pól
+    memcpy(ptr, &k, sizeof(k)); ptr += sizeof(k);
+    memcpy(ptr, &Ti, sizeof(Ti)); ptr += sizeof(Ti);
+    memcpy(ptr, &Td, sizeof(Td)); ptr += sizeof(Td);
+    memcpy(ptr, &liczCalk, sizeof(liczCalk));
+
+    return buf;
+}
+
+void RegulatorPID::deserializeConfig(const QByteArray& buf) {
+    const char* ptr = buf.data();
+
+    memcpy(&k, ptr, sizeof(k)); ptr += sizeof(k);
+    memcpy(&Ti, ptr, sizeof(Ti)); ptr += sizeof(Ti);
+    memcpy(&Td, ptr, sizeof(Td)); ptr += sizeof(Td);
+    memcpy(&liczCalk, ptr, sizeof(liczCalk));
+}

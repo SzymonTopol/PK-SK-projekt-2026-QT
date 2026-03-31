@@ -1,4 +1,4 @@
-QT       += core gui charts
+QT       += core gui charts network
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -11,6 +11,7 @@ CONFIG += c++17
 SOURCES += \
     ARX.cpp \
     FunctionGenerator.cpp \
+    Networkmanager.cpp \
     RegulatorPID.cpp \
     ServicesManager.cpp \
     UAR.cpp \
@@ -23,6 +24,8 @@ SOURCES += \
 HEADERS += \
     ARX.h \
     FunctionGenerator.h \
+    NetworkProtocol.h \
+    Networkmanager.h \
     RegulatorPID.h \
     ServicesManager.h \
     UAR.h \

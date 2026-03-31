@@ -5,6 +5,7 @@ ServicesManager::ServicesManager() {
     m_timer = new QTimer(this);
     connect(m_timer, &QTimer::timeout, this, &ServicesManager::onTimerTimeout);
     resetSimulation();
+    m_networkManager = std::make_unique<NetworkManager>(this);
 }
 
 ServicesManager &ServicesManager::getInstance() {
@@ -257,4 +258,49 @@ bool ServicesManager::loadState(const QString& filePath)
     // Aplikujemy wczytane parametry do logiki symulacji
     applyParams();
     return true;
+}
+
+void ServicesManager::testSerialization() {
+    qDebug() << "=== START TESTU SERIALIZACJI ===";
+
+    if (!m_uar) {
+        qDebug() << "Błąd: UAR nie jest zainicjalizowany! Odpal najpierw symulację.";
+        return;
+    }
+
+    // 1. Zapisujemy obecny stan ARX do QByteArray (symulujemy NADAWCĘ)
+    QByteArray payload = m_uar->getARX().serializeConfig();
+
+    // Budujemy nagłówek tak, jakbyśmy wysyłali to przez sieć
+    NetProto::PacketHeader header;
+    header.totalSize = sizeof(NetProto::PacketHeader) + payload.size();
+    header.type = NetProto::MsgType::CONFIG_ARX;
+    header.seqNum = 0;
+
+    QByteArray packet;
+    packet.append(reinterpret_cast<const char*>(&header), sizeof(NetProto::PacketHeader));
+    packet.append(payload);
+
+    qDebug() << "Paczka gotowa! Rozmiar całkowity:" << packet.size() << "bajtów.";
+
+    // 2. Symulujemy przesył... Psujemy lokalnego ARXa, żeby udowodnić, że odzyskamy dane z paczki!
+    std::vector<double> fakeA = {999.9, 999.9};
+    m_uar->getARX().setA(fakeA);
+    m_uar->getARX().setK(999);
+    qDebug() << "Zepsuto ARXa. Zaraz spróbujemy go odzyskać z paczki binarnej...";
+
+    // 3. Odbiór (symulujemy działanie onReadyRead z NetworkManager)
+    NetProto::PacketHeader receivedHeader;
+    memcpy(&receivedHeader, packet.data(), sizeof(NetProto::PacketHeader));
+
+    if (receivedHeader.type == NetProto::MsgType::CONFIG_ARX) {
+        // Wycinamy sam payload (wszystko po nagłówku)
+        QByteArray receivedPayload = packet.mid(sizeof(NetProto::PacketHeader));
+
+        // Przywracamy dane z paczki do naszego ARXa
+        m_uar->getARX().deserializeConfig(receivedPayload);
+        qDebug() << "Odzyskano dane ARX z paczki binarnej!";
+    }
+
+    qDebug() << "=== KONIEC TESTU ===";
 }
