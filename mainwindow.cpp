@@ -1,4 +1,5 @@
 #include <QApplication>
+#include <QMessageBox>
 
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
@@ -908,3 +909,25 @@ void MainWindow::on_checkBox_toggled(bool checked)
     autoRescaleCharts = checked;
 }
 
+
+void MainWindow::on_btn_INTERNET_clicked()
+{
+    // Prosty MessageBox do wyboru trybu działania
+    QMessageBox::StandardButton reply;
+    reply = QMessageBox::question(this, "Wybór trybu",
+                                  "Czy ten program ma być SERWEREM (Obiekt)?\n"
+                                  "Wybierz 'Yes' dla Serwera, lub 'No' żeby połączyć się jako Klient (Regulator) i wysłać dane.",
+                                  QMessageBox::Yes|QMessageBox::No);
+
+    if (reply == QMessageBox::Yes) {
+        // Stajemy się serwerem nasłuchującym
+        ServicesManager::getInstance().setupAsServer();
+        ui->statusbar->showMessage("Serwer nasłuchuje na porcie 12345...", 5000);
+        ui->statusbar->show();
+    } else {
+        // Łączymy się i po 0.5s wysyłamy config
+        ServicesManager::getInstance().connectAndSendConfigAsClient();
+        ui->statusbar->showMessage("Łączenie i wysyłanie konfiguracji...", 5000);
+        ui->statusbar->show();
+    }
+}

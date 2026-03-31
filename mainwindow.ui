@@ -454,6 +454,13 @@
              <item>
               <layout class="QHBoxLayout" name="horizontalLayout_SimButtons">
                <item>
+                <widget class="QPushButton" name="btn_INTERNET">
+                 <property name="text">
+                  <string>Internet</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
                 <widget class="QPushButton" name="btn_SIMULATION_stop">
                  <property name="enabled">
                   <bool>false</bool>
@@ -698,7 +705,7 @@
      <x>0</x>
      <y>0</y>
      <width>1337</width>
-     <height>20</height>
+     <height>25</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuPlik">

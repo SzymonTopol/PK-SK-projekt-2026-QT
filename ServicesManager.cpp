@@ -304,3 +304,33 @@ void ServicesManager::testSerialization() {
 
     qDebug() << "=== KONIEC TESTU ===";
 }
+
+// --- FUNKCJE SIECIOWE ---
+
+void ServicesManager::setupAsServer() {
+    if(m_networkManager) {
+        m_networkManager->startServer(12345);
+    }
+}
+
+void ServicesManager::connectAndSendConfigAsClient() {
+    if(!m_networkManager) return;
+
+    m_networkManager->connectToServer("127.0.0.1", 12345);
+
+    QTimer::singleShot(500, this, [this]() {
+        if(m_uar && m_networkManager->isConnected()) {
+            // Pakujemy i wysyłamy ARX
+            QByteArray arxPayload = m_uar->getARX().serializeConfig();
+            m_networkManager->sendPacket(NetProto::MsgType::CONFIG_ARX, arxPayload);
+            qDebug() << "Wysłano konfigurację ARX!";
+
+            // Pakujemy i wysyłamy PID
+            QByteArray pidPayload = m_uar->getRegulatorPID().serializeConfig();
+            m_networkManager->sendPacket(NetProto::MsgType::CONFIG_PID, pidPayload);
+            qDebug() << "Wysłano konfigurację PID!";
+        } else {
+            qDebug() << "Błąd: Nie udało się połączyć lub brak symulacji (UAR).";
+        }
+    });
+}

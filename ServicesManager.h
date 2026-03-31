@@ -133,6 +133,9 @@ public:
     UAR* getUar() { return m_uar.get(); }
     void testSerialization();
 
+    void setupAsServer();
+    void connectAndSendConfigAsClient();
+
 signals:
     void SimulationUpdated();
 private slots:

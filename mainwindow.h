@@ -82,6 +82,8 @@ private slots:
 
     void on_checkBox_toggled(bool checked);
 
+    void on_btn_INTERNET_clicked();
+
 private:
     Ui::MainWindow *ui;
     ARX_change_popup *arxWindow = nullptr;
