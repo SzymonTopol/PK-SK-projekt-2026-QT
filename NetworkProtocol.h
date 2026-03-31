@@ -5,7 +5,6 @@
 
 namespace NetProto {
 
-// Typy wiadomości w naszym protokole
 enum class MsgType : uint8_t {
     TICK_REGULATOR = 0x01, // Przesłanie wartości sterowania (u)
     TICK_OBJECT = 0x02,    // Przesłanie wartości regulowanej (y)
@@ -15,7 +14,7 @@ enum class MsgType : uint8_t {
 };
 
 // Nagłówek każdej ramki
-#pragma pack(push, 1) // Wymuszamy brak paddingu (wyrównywania bajtów) w strukturze
+#pragma pack(push, 1) // wymuszony brak wyrównywania bajtów w strukturze
 struct PacketHeader {
     uint32_t totalSize; // Rozmiar całego pakietu (nagłówek + payload)
     MsgType type;       // Typ wiadomości

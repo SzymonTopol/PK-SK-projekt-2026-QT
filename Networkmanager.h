@@ -3,27 +3,36 @@
 
 #include <QObject>
 #include <QTcpSocket>
-#include "NetworkProtocol.h" // Ten plik, który zdefiniowaliśmy wcześniej
+#include <QTcpServer>
+#include "NetworkProtocol.h"
 
 class NetworkManager : public QObject {
     Q_OBJECT
 public:
     explicit NetworkManager(QObject *parent = nullptr);
 
-    // Metody do nawiązywania połączenia (rozbudujesz je później)
+    // Tryb Serwera (nasłuchiwanie)
+    bool startServer(int port);
+    void stopServer();
+
+    // Tryb Klienta (łączenie do serwera)
     void connectToServer(const QString& ip, int port);
     void disconnect();
 
-    // Metoda do wysyłania danych (przykład z poprzedniej wiadomości)
-    void sendConfigARX();
-    void sendConfigPID();
+    // Uniwersalna metoda do wysyłania paczek
+    void sendPacket(NetProto::MsgType type, const QByteArray& payload);
+
+    bool isConnected() const;
 
 private slots:
-    // TUTAJ JEST MIEJSCE NA TWOJĄ FUNKCJĘ
     void onReadyRead();
+    void onNewConnection(); // Dla serwera, gdy ktoś się podłączy
+    void onConnected();     // Dla klienta, gdy uda się połączyć
+    void onDisconnected();  // Gdy połączenie zostanie zerwane
 
 private:
     QTcpSocket *m_socket;
+    QTcpServer *m_server;
 };
 
 #endif // NETWORKMANAGER_H
