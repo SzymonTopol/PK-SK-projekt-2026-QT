@@ -13,7 +13,7 @@ class arx_change_limits : public QDialog
     Q_OBJECT
 
 public:
-    explicit arx_change_limits(QWidget *parent = nullptr, double U_MINIMAL = -10.0, double U_MAXIMAL = 10.0, double Y_MINIMAL = -10.0, double Y_MAXIMAL = 10.0);
+    explicit arx_change_limits(QWidget *parent = nullptr, double U_MINIMAL = -10.0, double U_MAXIMAL = 10.0, double Y_MINIMAL = -10.0, double Y_MAXIMAL = 10.0, bool isConnectedAsClient = false);
     ~arx_change_limits();
 
 signals:
@@ -31,6 +31,9 @@ private:
 
     //nieskończoność, bo jak taką wartość ustawimy to w ARX warunek sprawdzający zakresy będzie prawdziwy
     const double NO_LIMIT_VAL = 999999999.0;
+
+    void blockControls();
+    void unblockControls();
 };
 
 #endif // ARX_CHANGE_LIMITS_H

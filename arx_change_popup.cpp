@@ -1,12 +1,15 @@
 #include "arx_change_popup.h"
 #include "ui_arx_change_popup.h"
 
-ARX_change_popup::ARX_change_popup(const std::vector<double> &currentA, const std::vector<double> &currentB, const int current_delay, const double current_noise, QWidget *parent)
+ARX_change_popup::ARX_change_popup(const std::vector<double> &currentA, const std::vector<double> &currentB, const int current_delay, const double current_noise, QWidget *parent, bool isConnectedAsClient)
     : QDialog(parent)
     , ui(new Ui::ARX_change_popup)
 {
     ui->setupUi(this);
     this->setAttribute(Qt::WA_DeleteOnClose);
+
+    if(isConnectedAsClient)
+        blockControls();
 
     ui->ARX_spinBox_count->blockSignals(true);
 
@@ -130,4 +133,24 @@ void ARX_change_popup::updateInputList(int count, QScrollArea* scrollArea, std::
             delete spin;
         }
     }
+}
+
+void ARX_change_popup::blockControls(){
+    ui->ARX_spinBox_count->setEnabled(false);
+
+    ui->ARX_scrollAreaA->setEnabled(false);
+    ui->ARX_scrollAreaB->setEnabled(false);
+
+    ui->ARX_noise->setEnabled(false);
+    ui->ARX_delay->setEnabled(false);
+}
+
+void ARX_change_popup::unblockControls(){
+    ui->ARX_spinBox_count->setEnabled(true);
+
+    ui->ARX_scrollAreaA->setEnabled(true);
+    ui->ARX_scrollAreaB->setEnabled(true);
+
+    ui->ARX_noise->setEnabled(true);
+    ui->ARX_delay->setEnabled(true);
 }

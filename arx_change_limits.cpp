@@ -1,7 +1,7 @@
 #include "arx_change_limits.h"
 #include "ui_arx_change_limits.h"
 
-arx_change_limits::arx_change_limits(QWidget *parent, double U_MINIMAL, double U_MAXIMAL, double Y_MINIMAL, double Y_MAXIMAL)
+arx_change_limits::arx_change_limits(QWidget *parent, double U_MINIMAL, double U_MAXIMAL, double Y_MINIMAL, double Y_MAXIMAL, bool isConnectedAsClient)
     : QDialog(parent)
     , ui(new Ui::arx_change_limits)
 {
@@ -9,6 +9,9 @@ arx_change_limits::arx_change_limits(QWidget *parent, double U_MINIMAL, double U
 
     this->setWindowTitle("Zmiana limitów modelu ARX");
     this->setAttribute(Qt::WA_DeleteOnClose);
+
+    if(isConnectedAsClient)
+        blockControls();
 
     if (std::abs(U_MAXIMAL) > (NO_LIMIT_VAL - 1000.0)) {
         // Jeśli limit jest wyłączony (ogromna liczba)
@@ -102,3 +105,24 @@ void arx_change_limits::on_checkBox_turnoff_Y_stateChanged(int arg1)
     ui->doubleSpinBox_Y_MAX->setDisabled(disableInputs);
 }
 
+void arx_change_limits::blockControls(){
+    ui->doubleSpinBox_U_MAX->setEnabled(false);
+    ui->doubleSpinBox_U_MIN->setEnabled(false);
+
+    ui->doubleSpinBox_Y_MAX->setEnabled(false);
+    ui->doubleSpinBox_Y_MIN->setEnabled(false);
+
+    ui->checkBox_turnoff_U->setEnabled(false);
+    ui->checkBox_turnoff_Y->setEnabled(false);
+}
+
+void arx_change_limits::unblockControls(){
+    ui->doubleSpinBox_U_MAX->setEnabled(true);
+    ui->doubleSpinBox_U_MIN->setEnabled(true);
+
+    ui->doubleSpinBox_Y_MAX->setEnabled(true);
+    ui->doubleSpinBox_Y_MIN->setEnabled(true);
+
+    ui->checkBox_turnoff_U->setEnabled(true);
+    ui->checkBox_turnoff_Y->setEnabled(true);
+}

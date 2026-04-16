@@ -16,7 +16,7 @@ class ARX_change_popup : public QDialog
     Q_OBJECT
 
 public:
-    explicit ARX_change_popup(const std::vector<double> &currentA, const std::vector<double> &currentB, const int current_delay, const double currnet_noise, QWidget *parent = nullptr);
+    explicit ARX_change_popup(const std::vector<double> &currentA, const std::vector<double> &currentB, const int current_delay, const double currnet_noise, QWidget *parent = nullptr, bool isConnectedAsClient = false);
     ~ARX_change_popup();
 
 signals:
@@ -36,6 +36,9 @@ private:
 
     void updateInputList(int count, QScrollArea* scrollArea, std::vector<QDoubleSpinBox*> &list);
     void clearScrollArea(QScrollArea* scrollArea);
+
+    void blockControls();
+    void unblockControls();
 };
 
 #endif // ARX_CHANGE_POPUP_H

@@ -316,7 +316,7 @@ void ServicesManager::setupAsServer() {
 void ServicesManager::connectAndSendConfigAsClient() {
     if(!m_networkManager) return;
 
-    m_networkManager->connectToServer("127.0.0.1", 12345);
+    m_networkManager->connectToServer("", 12345);
 
     QTimer::singleShot(500, this, [this]() {
         if(m_uar && m_networkManager->isConnected()) {

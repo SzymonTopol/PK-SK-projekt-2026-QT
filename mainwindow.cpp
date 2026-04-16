@@ -58,7 +58,7 @@ void MainWindow::on_btn_ARX_change_popup_clicked()
     double z = sm.getArxNoise();
     if(!arxWindow)
     {
-        arxWindow = new ARX_change_popup(a, b, k, z, this);
+        arxWindow = new ARX_change_popup(a, b, k, z, this, this->isConnectedAsClient);
 
         connect(arxWindow, &ARX_change_popup::updateArxData, this, &MainWindow::applyArxParamsChanged);
         connect(arxWindow, &QObject::destroyed, this, [this]()
@@ -79,6 +79,7 @@ void MainWindow::on_btn_ARX_change_popup_clicked()
 //zaaplikowanie danych wczytanych z okna do modyfikacji ARX'a
 void MainWindow::applyArxParamsChanged(const std::vector<double> &a, const std::vector<double>&b, int delay, double noise)
 {
+    if(this->isConnectedAsClient) return;
     ServicesManager &sm = ServicesManager::getInstance();
     sm.setArxParams(a, b, delay, noise);
     sm.applyParams();
@@ -96,7 +97,7 @@ void MainWindow::on_btn_ARX_change_popup_borders_clicked()
     double Y_MAX = sm.getBorderY().top;
     if(!limitsWindow)
     {
-        limitsWindow = new arx_change_limits(this, U_MIN, U_MAX, Y_MIN, Y_MAX);
+        limitsWindow = new arx_change_limits(this, U_MIN, U_MAX, Y_MIN, Y_MAX, this->isConnectedAsClient);
 
         connect(limitsWindow, &arx_change_limits::updateARXlimits, this, &MainWindow::applyArxLimitsChanged);
         connect(limitsWindow, &QObject::destroyed, this, [this]()
@@ -115,6 +116,7 @@ void MainWindow::on_btn_ARX_change_popup_borders_clicked()
 
 void MainWindow::applyArxLimitsChanged(const double U_min, const double U_max, const double Y_min, const double Y_max)
 {
+    if(this->isConnectedAsClient) return;
     Borders border_u = {U_min, U_max};
     Borders border_y = {Y_min, Y_max};
 
@@ -929,5 +931,60 @@ void MainWindow::on_btn_INTERNET_clicked()
         ServicesManager::getInstance().connectAndSendConfigAsClient();
         ui->statusbar->showMessage("Łączenie i wysyłanie konfiguracji...", 5000);
         ui->statusbar->show();
+        this->isConnectedAsClient = true;
+        blockControls();
     }
+}
+
+void MainWindow::blockControls(){
+    //Blokada PIDa
+    ui->input_PID_k->setEnabled(false);
+    ui->input_PID_Td->setEnabled(false);
+    ui->input_PID_Ti->setEnabled(false);
+    ui->comboBox_PID_error->setEnabled(false);
+    ui->btn_intergral_reset->setEnabled(false);
+
+    //Blokada Generatora
+    ui->input_GEN_Amplitude->setEnabled(false);
+    ui->input_GEN_fill->setEnabled(false);
+    ui->input_GEN_offset->setEnabled(false);
+    ui->input_GEN__T->setEnabled(false);
+    ui->input_setValue->setEnabled(false);
+    ui->comboBox_GEN_function->setEnabled(false);
+
+    //Blokada kontroli symulacji
+    /*
+    ui->HorizontalSlider_ms_setup->setEnabled(false);
+    ui->spinBox_ms_setup->setEnabled(false);
+
+    ui->horizontalSlider_time_frame->setEnabled(false);
+    ui->spinBox_time_frame->setEnabled(false);
+    */
+
+}
+
+void MainWindow::unblockControls(){
+    //Odblokowanie PIDa
+    ui->input_PID_k->setEnabled(true);
+    ui->input_PID_Td->setEnabled(true);
+    ui->input_PID_Ti->setEnabled(true);
+    ui->comboBox_PID_error->setEnabled(true);
+    ui->btn_intergral_reset->setEnabled(true);
+
+    //Odblokowanie Generatora
+    ui->input_GEN_Amplitude->setEnabled(true);
+    ui->input_GEN_fill->setEnabled(true);
+    ui->input_GEN_offset->setEnabled(true);
+    ui->input_GEN__T->setEnabled(true);
+    ui->input_setValue->setEnabled(true);
+    ui->comboBox_GEN_function->setEnabled(true);
+
+    //Odblokowanie kontroli symulacji
+    /*
+    ui->HorizontalSlider_ms_setup->setEnabled(true);
+    ui->spinBox_ms_setup->setEnabled(true);
+
+    ui->horizontalSlider_time_frame->setEnabled(true);
+    ui->spinBox_time_frame->setEnabled(true);
+    */
 }

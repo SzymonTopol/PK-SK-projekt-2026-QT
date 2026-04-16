@@ -104,6 +104,11 @@ private:
     int getMaxPointsInWindow() const;
     void updateAllXAxesRange(double current_time_s);
 
+    //Blokowanie kontrolek
+    bool isConnectedAsClient = false;
+    void blockControls();
+    void unblockControls();
+
     // GŁÓWNY
     QLineSeries *seriesSetpoint = nullptr;
     QLineSeries *seriesOutputMain = nullptr;

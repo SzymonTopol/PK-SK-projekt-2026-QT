@@ -1,4 +1,5 @@
 #include "RegulatorPID.h"
+#include <QApplication>
 
 // Konstruktory:
 RegulatorPID::RegulatorPID(double k, double Ti, double Td)
@@ -138,4 +139,6 @@ void RegulatorPID::deserializeConfig(const QByteArray& buf) {
     memcpy(&Ti, ptr, sizeof(Ti)); ptr += sizeof(Ti);
     memcpy(&Td, ptr, sizeof(Td)); ptr += sizeof(Td);
     memcpy(&liczCalk, ptr, sizeof(liczCalk));
+
+
 }

@@ -94,6 +94,7 @@ void ARX::reset() {
 #include <QByteArray>
 #include <cstring>
 #include <cstdint>
+#include <QApplication>
 
 QByteArray ARX::serializeConfig() const {
     uint32_t countA = static_cast<uint32_t>(A.size());
@@ -126,6 +127,7 @@ QByteArray ARX::serializeConfig() const {
 }
 
 void ARX::deserializeConfig(const QByteArray& buf) {
+    qDebug()<<"Deserializacja";
     const char* ptr = buf.data();
 
     memcpy(&K, ptr, sizeof(K)); ptr += sizeof(K);
@@ -144,4 +146,6 @@ void ARX::deserializeConfig(const QByteArray& buf) {
     B.resize(countB);
     size_t sizeBBytes = countB * sizeof(double);
     if(sizeBBytes > 0) { memcpy(B.data(), ptr, sizeBBytes); ptr += sizeBBytes; }
+
+    qDebug()<<this->A[0];
 }
