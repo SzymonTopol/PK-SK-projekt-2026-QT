@@ -84,6 +84,10 @@ private slots:
 
     void on_btn_INTERNET_clicked();
 
+    // obsługa zdarzeń sieciowych
+    void onPeerConnectionChanged(bool connected, const QString& ip);
+    void onNetworkConfigReceived();
+
 private:
     Ui::MainWindow *ui;
     ARX_change_popup *arxWindow = nullptr;
@@ -135,5 +139,6 @@ private:
     QLineSeries *seriesP;
     QLineSeries *seriesI;
     QLineSeries *seriesD;
+
 };
 #endif // MAINWINDOW_H

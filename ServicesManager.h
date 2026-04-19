@@ -134,10 +134,12 @@ public:
     void testSerialization();
 
     void setupAsServer();
-    void connectAndSendConfigAsClient();
+    void connectAndSendConfigAsClient(const QString& ip = "127.0.0.1");
 
 signals:
     void SimulationUpdated();
+    void peerConnectionChanged(bool connected, const QString& ip);
+    void networkConfigReceived();
 private slots:
     void onTimerTimeout();
 private:

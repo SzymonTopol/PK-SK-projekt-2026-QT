@@ -2,6 +2,7 @@
 #define FUNCTIONGENERATOR_H
 
 #include <math.h>
+#include <QByteArray>
 
 class FunctionGenerator {
 public:
@@ -24,6 +25,10 @@ public:
     void set_function_type(FunctionType type);
 
     double get_value(unsigned int step_count);                   // step_count - numer kroku symulacji
+
+    //serializacja do sieci
+    QByteArray serializeConfig() const;
+    void deserializeConfig(const QByteArray& buf);
 
 private:
     double _Amplitude = 1.0;        // amplituda

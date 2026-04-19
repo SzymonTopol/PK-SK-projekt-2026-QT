@@ -19,6 +19,7 @@ SOURCES += \
     arx_change_popup.cpp \
     main.cpp \
     mainwindow.cpp \
+    network_dialog.cpp \
     saveloadmanager.cpp
 
 HEADERS += \
@@ -32,6 +33,7 @@ HEADERS += \
     arx_change_limits.h \
     arx_change_popup.h \
     mainwindow.h \
+    network_dialog.h \
     saveloadmanager.h
 
 FORMS += \

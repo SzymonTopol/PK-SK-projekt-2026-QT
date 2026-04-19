@@ -68,3 +68,29 @@ double FunctionGenerator::get_value(unsigned int step_count) {
         return 0.0; // to do: obsługa błędu XD
     }
 }
+
+QByteArray FunctionGenerator::serializeConfig() const {
+    // Rozmiar na wszystkie pola prywatne
+    size_t size = sizeof(_Amplitude) + sizeof(_Steady) + sizeof(_T) + sizeof(_p) + sizeof(_type);
+    QByteArray buf;
+    buf.resize(size);
+    char* ptr = buf.data();
+
+    memcpy(ptr, &_Amplitude, sizeof(_Amplitude)); ptr += sizeof(_Amplitude);
+    memcpy(ptr, &_Steady, sizeof(_Steady)); ptr += sizeof(_Steady);
+    memcpy(ptr, &_T, sizeof(_T)); ptr += sizeof(_T);
+    memcpy(ptr, &_p, sizeof(_p)); ptr += sizeof(_p);
+    memcpy(ptr, &_type, sizeof(_type));
+
+    return buf;
+}
+
+void FunctionGenerator::deserializeConfig(const QByteArray& buf) {
+    const char* ptr = buf.data();
+
+    memcpy(&_Amplitude, ptr, sizeof(_Amplitude)); ptr += sizeof(_Amplitude);
+    memcpy(&_Steady, ptr, sizeof(_Steady)); ptr += sizeof(_Steady);
+    memcpy(&_T, ptr, sizeof(_T)); ptr += sizeof(_T);
+    memcpy(&_p, ptr, sizeof(_p)); ptr += sizeof(_p);
+    memcpy(&_type, ptr, sizeof(_type));
+}

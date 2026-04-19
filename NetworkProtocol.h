@@ -10,7 +10,8 @@ enum class MsgType : uint8_t {
     TICK_OBJECT = 0x02,    // Przesłanie wartości regulowanej (y)
     CONFIG_PID = 0x03,     // Zserializowana konfiguracja PID
     CONFIG_ARX = 0x04,     // Zserializowana konfiguracja ARX
-    SIM_CTRL = 0x05        // Komendy sterujące (Start, Stop, Interwał)
+    SIM_CTRL = 0x05,        // Komendy sterujące (Start, Stop, Interwał)
+    CONFIG_GEN = 0x06   // Zserializowana konfiguracja Generatora
 };
 
 // Nagłówek każdej ramki

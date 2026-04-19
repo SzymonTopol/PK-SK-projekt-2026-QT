@@ -33,6 +33,11 @@ private slots:
 private:
     QTcpSocket *m_socket;
     QTcpServer *m_server;
+
+signals:
+    void peerConnected(const QString& peerIp);
+    void peerDisconnected();
+    void configReceived();
 };
 
 #endif // NETWORKMANAGER_H

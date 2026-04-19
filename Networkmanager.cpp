@@ -53,6 +53,7 @@ void NetworkManager::onNewConnection() {
     connect(m_socket, &QTcpSocket::disconnected, this, &NetworkManager::onDisconnected);
 
     qDebug() << "Nowy klient podłączony z IP:" << m_socket->peerAddress().toString();
+    emit peerConnected(m_socket->peerAddress().toString());
 }
 
 // --- TRYB KLIENTA ---
@@ -72,10 +73,12 @@ void NetworkManager::disconnect() {
 
 void NetworkManager::onConnected() {
     qDebug() << "Połączono z serwerem pomyślnie!";
+    emit peerConnected(m_socket->peerAddress().toString());
 }
 
 void NetworkManager::onDisconnected() {
     qDebug() << "Rozłączono.";
+    emit peerDisconnected();
 }
 
 bool NetworkManager::isConnected() const {
@@ -138,9 +141,18 @@ void NetworkManager::onReadyRead() {
             }
             break;
         }
+        case NetProto::MsgType::CONFIG_GEN: {
+            if(ServicesManager::getInstance().getUar() != nullptr) {
+                ServicesManager::getInstance().getUar()->getFunctionGenerator().deserializeConfig(payload);
+                qDebug() << "Odebrano nową konfigurację Generatora!";
+            }
+            break;
+        }
         default:
             qDebug() << "Odebrano wiadomosc nieobslugiwanego typu.";
                 break;
         }
+        emit configReceived();
     }
+
 }

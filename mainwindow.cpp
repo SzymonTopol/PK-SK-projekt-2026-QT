@@ -3,12 +3,15 @@
 
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "network_dialog.h"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+
+    // Ukrywamy dolny pasek, bo lampkę statusu masz teraz ładnie w menu bocznym
     ui->statusbar->hide();
     this->setMinimumSize(1200, 770);
 
@@ -33,12 +36,18 @@ MainWindow::MainWindow(QWidget *parent)
         ServicesManager::getInstance().setManualSetpoint(val);
     });
 
-    //hard reset
+    // hard reset
     connect(ui->actionNowy_projekt, &QAction::triggered, this, &MainWindow::hardResetApp);
-    //zapis do pliku
+    // zapis do pliku
     connect(ui->actionZapisz_projekt, &QAction::triggered, this, &MainWindow::saveToFile);
-    //odczyt z pliku
+    // odczyt z pliku
     connect(ui->actionWczytaj_projekt, &QAction::triggered, this, &MainWindow::loadFromFile);
+
+    // obsługa internetu - ustawiamy tekst startowy na kontrolce wyklikanej w UI
+    ui->statusLabel->setText("🔴 Brak połączenia sieciowego");
+
+    connect(&ServicesManager::getInstance(), &ServicesManager::peerConnectionChanged, this, &MainWindow::onPeerConnectionChanged);
+    connect(&ServicesManager::getInstance(), &ServicesManager::networkConfigReceived, this, &MainWindow::onNetworkConfigReceived);
 }
 
 MainWindow::~MainWindow()
@@ -62,9 +71,9 @@ void MainWindow::on_btn_ARX_change_popup_clicked()
 
         connect(arxWindow, &ARX_change_popup::updateArxData, this, &MainWindow::applyArxParamsChanged);
         connect(arxWindow, &QObject::destroyed, this, [this]()
-        {
-            arxWindow = nullptr;
-        });
+                {
+                    arxWindow = nullptr;
+                });
 
         arxWindow->show();
     }
@@ -74,7 +83,6 @@ void MainWindow::on_btn_ARX_change_popup_clicked()
         arxWindow->activateWindow();
     }
 }
-
 
 //zaaplikowanie danych wczytanych z okna do modyfikacji ARX'a
 void MainWindow::applyArxParamsChanged(const std::vector<double> &a, const std::vector<double>&b, int delay, double noise)
@@ -101,9 +109,9 @@ void MainWindow::on_btn_ARX_change_popup_borders_clicked()
 
         connect(limitsWindow, &arx_change_limits::updateARXlimits, this, &MainWindow::applyArxLimitsChanged);
         connect(limitsWindow, &QObject::destroyed, this, [this]()
-        {
-            limitsWindow = nullptr;
-        });
+                {
+                    limitsWindow = nullptr;
+                });
 
         limitsWindow->show();
     }
@@ -128,12 +136,10 @@ void MainWindow::applyArxLimitsChanged(const double U_min, const double U_max, c
     sm.applyParams();
 }
 
-
 //=====REGULATOR PID=====
 
 void MainWindow::on_input_PID_k_editingFinished()
 {
-
     updatePID();
 }
 
@@ -141,7 +147,6 @@ void MainWindow::on_input_PID_Ti_editingFinished()
 {
     updatePID();
 }
-
 
 void MainWindow::on_input_PID_Td_editingFinished()
 {
@@ -166,7 +171,7 @@ void MainWindow::updatePID()
     else
         liczcalk = RegulatorPID::LiczCalk::Zew;
     sm.setPidParams(p, ti, td, liczcalk);
-    sm.applyParams();    
+    sm.applyParams();
 }
 
 void MainWindow::on_btn_intergral_reset_clicked()
@@ -175,8 +180,7 @@ void MainWindow::on_btn_intergral_reset_clicked()
     sm.resetPidIntegral();
     qDebug() << "Pamięć całki regulatora PID zresetowana.";
 
-    //testowe wywołanie, tylko na moment
-    ServicesManager::getInstance().testSerialization();
+    // USUNIĘTO testSerialization()! To on psuł macierz ARX i wywalał wykresy w kosmos (NaN/Inf).
 }
 
 //=====GENERATOR=====
@@ -342,7 +346,6 @@ void MainWindow::on_btn_SIMULATION_stop_clicked()
     ui->btn_SIMULATION_stop->setEnabled(false);
 
     qDebug() << "Symulacja zatrzymana";
-
 }
 
 void MainWindow::on_btn_SIMULATION_reset_clicked()
@@ -513,7 +516,7 @@ void MainWindow::updateCharts()
     // --- Dodawanie punktów ---
     seriesSetpoint->append(time_s, lastPoint.w);
     seriesOutputMain->append(time_s, lastPoint.y);
-    
+
     // PID
     seriesP->append(time_s, lastPoint.pid_values.p);
     seriesI->append(time_s, lastPoint.pid_values.i);
@@ -545,7 +548,7 @@ void MainWindow::updateCharts()
 
     // --- INTELIGENTNE SKALOWANIE Y ---
     // Wywołujemy dopiero po aktualizacji osi X i dodaniu punktów!
-    
+
     // 1. Wykres główny (zawiera dwie serie: Setpoint i Output)
     autoScaleYAxis(axisX_Main, axisY_Main, {seriesSetpoint, seriesOutputMain});
 
@@ -901,7 +904,7 @@ void MainWindow::on_pushButton_rescale_charts_clicked()
     if(axisY_Y) axisY_Y->setRange(-2, 2);
     if(axisY_E) axisY_E->setRange(-1, 1);
     if(axisY_U) axisY_U->setRange(-5, 5);
-    
+
     qDebug() << "Skale Y wykresów zresetowane";
 }
 
@@ -914,26 +917,58 @@ void MainWindow::on_checkBox_toggled(bool checked)
 
 void MainWindow::on_btn_INTERNET_clicked()
 {
-    // Prosty MessageBox do wyboru trybu działania
-    QMessageBox::StandardButton reply;
-    reply = QMessageBox::question(this, "Wybór trybu",
-                                  "Czy ten program ma być SERWEREM (Obiekt)?\n"
-                                  "Wybierz 'Yes' dla Serwera, lub 'No' żeby połączyć się jako Klient (Regulator) i wysłać dane.",
-                                  QMessageBox::Yes|QMessageBox::No);
+    NetworkDialog dialog(this);
 
-    if (reply == QMessageBox::Yes) {
-        // Stajemy się serwerem nasłuchującym
-        ServicesManager::getInstance().setupAsServer();
-        ui->statusbar->showMessage("Serwer nasłuchuje na porcie 12345...", 5000);
-        ui->statusbar->show();
-    } else {
-        // Łączymy się i po 0.5s wysyłamy config
-        ServicesManager::getInstance().connectAndSendConfigAsClient();
-        ui->statusbar->showMessage("Łączenie i wysyłanie konfiguracji...", 5000);
-        ui->statusbar->show();
-        this->isConnectedAsClient = true;
-        blockControls();
+    // Czekamy, aż użytkownik kliknie "Zatwierdź"
+    if (dialog.exec() == QDialog::Accepted) {
+        if (dialog.isServer()) {
+            // Tryb Serwera (Obiekt)
+            ServicesManager::getInstance().setupAsServer();
+            ui->statusLabel->setText("🟢 Serwer nasłuchuje...");
+
+            this->isConnectedAsClient = false;
+
+            // Zgodnie z instrukcją: Instancja obiektu blokuje wszystko oprócz kontrolki trybu i ARX
+            blockControls();
+            ui->btn_ARX_change_popup->setEnabled(true);
+            ui->btn_ARX_change_popup_borders->setEnabled(true);
+
+        } else {
+            // Tryb Klienta (Regulator)
+            QString targetIp = dialog.getIpAddress();
+            ServicesManager::getInstance().connectAndSendConfigAsClient(targetIp);
+            ui->statusLabel->setText("🟡 Łączenie...");
+
+            this->isConnectedAsClient = true;
+
+            // Zgodnie z instrukcją: Instancja regulatora ma wszystko odblokowane z wyjątkiem ARX
+            unblockControls();
+            ui->btn_ARX_change_popup->setEnabled(false);
+            ui->btn_ARX_change_popup_borders->setEnabled(false);
+        }
     }
+}
+
+void MainWindow::onPeerConnectionChanged(bool connected, const QString& ip)
+{
+    if (connected) {
+        // Zależnie czy jesteśmy serwerem czy klientem, pokazujemy nieco inny tekst (ale w obu przypadkach IP)
+        QString role = isConnectedAsClient ? "Serwerem" : "Klientem";
+        ui->statusLabel->setText("🟢 Połączono z " + role + "\n(IP: " + ip + ")");
+    } else {
+        ui->statusLabel->setText("🔴 Połączenie zerwane");
+
+        unblockControls();
+        ui->btn_ARX_change_popup->setEnabled(true);
+        ui->btn_ARX_change_popup_borders->setEnabled(true);
+        QMessageBox::warning(this, "Rozłączono", "Zerwano połączenie sieciowe. Aplikacja wraca do trybu stacjonarnego.");
+    }
+}
+
+void MainWindow::onNetworkConfigReceived()
+{
+    UpdateUIAfterLoad(); //aby wizualnie widzieć że coś dostaliśmy
+    qDebug() << "Pobrano nową konfigurację z sieci!";
 }
 
 void MainWindow::blockControls(){
@@ -951,16 +986,6 @@ void MainWindow::blockControls(){
     ui->input_GEN__T->setEnabled(false);
     ui->input_setValue->setEnabled(false);
     ui->comboBox_GEN_function->setEnabled(false);
-
-    //Blokada kontroli symulacji
-    /*
-    ui->HorizontalSlider_ms_setup->setEnabled(false);
-    ui->spinBox_ms_setup->setEnabled(false);
-
-    ui->horizontalSlider_time_frame->setEnabled(false);
-    ui->spinBox_time_frame->setEnabled(false);
-    */
-
 }
 
 void MainWindow::unblockControls(){
@@ -978,13 +1003,4 @@ void MainWindow::unblockControls(){
     ui->input_GEN__T->setEnabled(true);
     ui->input_setValue->setEnabled(true);
     ui->comboBox_GEN_function->setEnabled(true);
-
-    //Odblokowanie kontroli symulacji
-    /*
-    ui->HorizontalSlider_ms_setup->setEnabled(true);
-    ui->spinBox_ms_setup->setEnabled(true);
-
-    ui->horizontalSlider_time_frame->setEnabled(true);
-    ui->spinBox_time_frame->setEnabled(true);
-    */
 }

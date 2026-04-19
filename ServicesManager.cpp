@@ -6,6 +6,17 @@ ServicesManager::ServicesManager() {
     connect(m_timer, &QTimer::timeout, this, &ServicesManager::onTimerTimeout);
     resetSimulation();
     m_networkManager = std::make_unique<NetworkManager>(this);
+
+    //sygnały sieciowe
+    connect(m_networkManager.get(), &NetworkManager::peerConnected, this, [this](const QString& ip){
+        emit peerConnectionChanged(true, ip);
+    });
+    connect(m_networkManager.get(), &NetworkManager::peerDisconnected, this, [this](){
+        emit peerConnectionChanged(false, "");
+    });
+    connect(m_networkManager.get(), &NetworkManager::configReceived, this, [this](){
+        emit networkConfigReceived();
+    });
 }
 
 ServicesManager &ServicesManager::getInstance() {
@@ -313,22 +324,27 @@ void ServicesManager::setupAsServer() {
     }
 }
 
-void ServicesManager::connectAndSendConfigAsClient() {
+void ServicesManager::connectAndSendConfigAsClient(const QString& ip) {
     if(!m_networkManager) return;
 
-    m_networkManager->connectToServer("", 12345);
+    m_networkManager->connectToServer(ip, 12345);
 
     QTimer::singleShot(500, this, [this]() {
         if(m_uar && m_networkManager->isConnected()) {
-            // Pakujemy i wysyłamy ARX
+            // ARX
             QByteArray arxPayload = m_uar->getARX().serializeConfig();
             m_networkManager->sendPacket(NetProto::MsgType::CONFIG_ARX, arxPayload);
             qDebug() << "Wysłano konfigurację ARX!";
 
-            // Pakujemy i wysyłamy PID
+            // PID
             QByteArray pidPayload = m_uar->getRegulatorPID().serializeConfig();
             m_networkManager->sendPacket(NetProto::MsgType::CONFIG_PID, pidPayload);
             qDebug() << "Wysłano konfigurację PID!";
+
+            // GENERATOR (NOWE)
+            QByteArray genPayload = m_uar->getFunctionGenerator().serializeConfig();
+            m_networkManager->sendPacket(NetProto::MsgType::CONFIG_GEN, genPayload);
+            qDebug() << "Wysłano konfigurację Generatora!";
         } else {
             qDebug() << "Błąd: Nie udało się połączyć lub brak symulacji (UAR).";
         }
