@@ -838,36 +838,61 @@ void MainWindow::UpdateUIAfterLoad()
     ui->input_PID_Td->setValue(sm.getPidTd());
 
     // Generator / Zadana
-    if (sm.getPidMethod() == RegulatorPID::LiczCalk::Wew)
-        ui->comboBox_PID_error->setCurrentIndex(1);
-    else
-        ui->comboBox_PID_error->setCurrentIndex(0);
+
+    // if (sm.getPidMethod() == RegulatorPID::LiczCalk::Wew)
+    //     ui->comboBox_PID_error->setCurrentIndex(1);
+    // else
+    //     ui->comboBox_PID_error->setCurrentIndex(0);
 
     bool useGen = sm.getUseGenerator();
-    ui->checkBox_setValue->setChecked(useGen);
+    // ui->checkBox_setValue->setChecked(useGen);
 
-    // Odświeżenie stanu enabled/disabled pól
-    ui->input_setValue->setEnabled(!useGen);
-    ui->comboBox_GEN_function->setEnabled(useGen);
-    ui->input_GEN_Amplitude->setEnabled(useGen);
-    ui->input_GEN__T->setEnabled(useGen);
-    ui->input_GEN_offset->setEnabled(useGen);
+    // // Odświeżenie stanu enabled/disabled pól
+    // ui->input_setValue->setEnabled(!useGen);
+    // ui->comboBox_GEN_function->setEnabled(useGen);
+    // ui->input_GEN_Amplitude->setEnabled(useGen);
+    // ui->input_GEN__T->setEnabled(useGen);
+    // ui->input_GEN_offset->setEnabled(useGen);
 
-    if (sm.getGenType() == FunctionGenerator::FunctionType::SIN)
-    {
+    // if (sm.getGenType() == FunctionGenerator::FunctionType::SIN)
+    // {
+    //     ui->comboBox_GEN_function->setCurrentIndex(0);
+    //     ui->input_GEN_fill->setEnabled(false);
+    // }
+    // else
+    // {
+    //     ui->comboBox_GEN_function->setCurrentIndex(1);
+    //     ui->input_GEN_fill->setEnabled(true);
+    // }
+
+
+
+    // ui->input_GEN_Amplitude->setValue(sm.getGenAmp());
+    // ui->input_GEN__T->setValue(sm.getGenFreq());
+    // ui->input_GEN_offset->setValue(sm.getGenOffset());
+    // ui->input_GEN_fill->setValue(sm.getGenfill());
+
+    // Ustawienie wartości w ComboBox (to robimy zawsze, żeby widok zgadzał się z danymi, niezależnie od blokad)
+    if (sm.getGenType() == FunctionGenerator::FunctionType::SIN) {
         ui->comboBox_GEN_function->setCurrentIndex(0);
-        ui->input_GEN_fill->setEnabled(false);
-    }
-    else
-    {
+    } else {
         ui->comboBox_GEN_function->setCurrentIndex(1);
-        ui->input_GEN_fill->setEnabled(true);
     }
 
-    ui->input_GEN_Amplitude->setValue(sm.getGenAmp());
-    ui->input_GEN__T->setValue(sm.getGenFreq());
-    ui->input_GEN_offset->setValue(sm.getGenOffset());
-    ui->input_GEN_fill->setValue(sm.getGenfill());
+    if (isConnectedAsClient) //tylko w przypadku gdy jesteśmy na kliencie możemy blokwać/odblokowywać kontrolki generatora przy ładowaniu
+    {
+        ui->input_setValue->setEnabled(!useGen);
+        ui->comboBox_GEN_function->setEnabled(useGen);
+        ui->input_GEN_Amplitude->setEnabled(useGen);
+        ui->input_GEN__T->setEnabled(useGen);
+        ui->input_GEN_offset->setEnabled(useGen);
+
+        if (sm.getGenType() == FunctionGenerator::FunctionType::SQUARE) {
+            ui->input_GEN_fill->setEnabled(true);
+        } else {
+            ui->input_GEN_fill->setEnabled(false);
+        }
+    }
 
     int sampleMs = sm.getGenSampleMs();
 
@@ -986,6 +1011,8 @@ void MainWindow::blockControls(){
     ui->input_GEN__T->setEnabled(false);
     ui->input_setValue->setEnabled(false);
     ui->comboBox_GEN_function->setEnabled(false);
+    ui->checkBox_setValue->setEnabled(false);
+
 }
 
 void MainWindow::unblockControls(){
@@ -1003,4 +1030,6 @@ void MainWindow::unblockControls(){
     ui->input_GEN__T->setEnabled(true);
     ui->input_setValue->setEnabled(true);
     ui->comboBox_GEN_function->setEnabled(true);
+    ui->checkBox_setValue->setEnabled(true);
+
 }
