@@ -118,10 +118,9 @@ void NetworkManager::onReadyRead() {
             return; // Czekamy na resztę pakietu
         }
 
-        // Ściągamy całą ramkę z soketu
+        // Cała ramka z Socketu
         QByteArray fullPacket = m_socket->read(header.totalSize);
 
-        // Wycinamy sam payload (wszystko po nagłówku)
         QByteArray payload = fullPacket.mid(sizeof(NetProto::PacketHeader));
 
         // Deserializacja w zależności od tego, co przyszło
@@ -153,9 +152,9 @@ void NetworkManager::onReadyRead() {
         //         break;
         // }
         // emit configReceived();
-        // Wycinamy sam payload (wszystko po nagłówku)
 
         // Deserializacja w zależności od tego, co przyszło
+
         switch(header.type) {
         case NetProto::MsgType::CONFIG_ARX:
             emit arxConfigReceived(payload);

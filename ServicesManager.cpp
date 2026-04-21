@@ -22,13 +22,11 @@ ServicesManager::ServicesManager() {
         if(m_uar) {
             m_uar->getARX().deserializeConfig(payload);
 
-            // Kopiujemy stan z UAR do "cienia" w ServicesManager
             m_arx_a = m_uar->getARX().getA();
             m_arx_b = m_uar->getARX().getB();
             m_arx_delay = m_uar->getARX().getK();
             m_arx_noise = m_uar->getARX().getZ();
 
-            // Przepisujemy limity (zastępuje poprzedni komentarz)
             m_border_u = m_uar->getARX().getBordersU();
             m_border_y = m_uar->getARX().getBordersY();
 
@@ -58,8 +56,6 @@ ServicesManager::ServicesManager() {
             m_gen_fill = m_uar->getFunctionGenerator().getSquareFilling();
             m_gen_type = m_uar->getFunctionGenerator().getType();
 
-            // Odwrócenie wzoru z FunctionGenerator: _T = round(T_RZ * 1000.0 / T_T)
-            // Zakładamy, że T_T (m_gen_sample_ms) jest lokalne i się nie zmieniło przez sieć
             m_gen_frequency = (m_uar->getFunctionGenerator().getT() * m_gen_sample_ms) / 1000.0;
 
             emit networkConfigReceived();

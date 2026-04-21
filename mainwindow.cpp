@@ -898,7 +898,9 @@ void MainWindow::UpdateUIAfterLoad()
         ui->comboBox_GEN_function->setCurrentIndex(1);
     }
 
-    if (isConnectedAsClient) //tylko w przypadku gdy jesteśmy na kliencie możemy blokwać/odblokowywać kontrolki generatora przy ładowaniu
+    //tylko w przypadku gdy jesteśmy na kliencie możemy blokwać/odblokowywać kontrolki generatora przy ładowaniu
+
+    if (isConnectedAsClient)
     {
         ui->input_setValue->setEnabled(!useGen);
         ui->comboBox_GEN_function->setEnabled(useGen);
