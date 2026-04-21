@@ -149,30 +149,29 @@ private:
     double m_manual_setpoint = 0.0;
 
     // arx
-    std::vector<double> m_arx_a = {0.0};
-    std::vector<double> m_arx_b = {0.0};
-    Borders m_border_u = {-10.0, 10.0};
-    Borders m_border_y = {-10.0, 10.0};
+    std::vector<double> m_arx_a = {-0.4, -0.6, 0.0};
+    std::vector<double> m_arx_b = {0.6, 0.4, 0.0};
+    Borders m_border_u = {-1.0, 1.0};
+    Borders m_border_y = {-1.0, 1.0};
     int m_arx_delay = 1;
-    double m_arx_noise = 0;
+    double m_arx_noise = 0.0;
 
     // pid
-    double m_pid_p = 1.0;
-    double m_pid_ti = 0.0;
+    double m_pid_p = 0.5;
+    double m_pid_ti = 5.0;
     double m_pid_td = 0.0;
-    RegulatorPID::LiczCalk m_LiczCalk = RegulatorPID::LiczCalk::Wew;
-
+    RegulatorPID::LiczCalk m_LiczCalk = RegulatorPID::LiczCalk::Zew;
 
     // generatory
-    FunctionGenerator::FunctionType m_gen_type = FunctionGenerator::FunctionType::SIN;
+    FunctionGenerator::FunctionType m_gen_type = FunctionGenerator::FunctionType::SQUARE;
     double m_gen_amplitude = 1.0;
-    double m_gen_frequency = 1.0;   // T_RZ
-    int m_gen_sample_ms = 100;      // T_T
+    double m_gen_frequency = 10.0;   // T_RZ
+    int m_gen_sample_ms = 50;        // T_T
     double m_gen_offset = 0.0;
-    double m_gen_fill = 0.5;        // dla square
+    double m_gen_fill = 0.5;         // dla square
 
     // obsluga
-    bool m_use_generator = false;
+    bool m_use_generator = true;
 
     // glowny uar
     std::unique_ptr<UAR> m_uar = nullptr;

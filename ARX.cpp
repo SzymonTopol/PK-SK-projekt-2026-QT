@@ -83,7 +83,7 @@ double ARX::simulate(double input_u) {
     y.pop_front();
     insert_y(new_y);
 
-    return new_y;
+    return y.back();
 }
 
 void ARX::reset() {

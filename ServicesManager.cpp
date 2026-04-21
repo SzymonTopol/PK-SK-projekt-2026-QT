@@ -3,6 +3,7 @@
 
 ServicesManager::ServicesManager() {
     m_timer = new QTimer(this);
+    m_timer->setTimerType(Qt::PreciseTimer);
     connect(m_timer, &QTimer::timeout, this, &ServicesManager::onTimerTimeout);
     resetSimulation();
     m_networkManager = std::make_unique<NetworkManager>(this);
@@ -155,10 +156,18 @@ void ServicesManager::resetSimulation() {
 }
 
 void ServicesManager::hardResetSimulation() {
-    ARX arx_model({0.0}, {0.0}, 1);
-    RegulatorPID regulator_pid(0,0,0);
-    FunctionGenerator func_gen(0,0,0,0,0);
-    func_gen.set_function_type(FunctionGenerator::FunctionType::SIN);
+    // Twardy reset ARX
+    ARX arx_model({-0.4, -0.6, 0.0}, {0.6, 0.4, 0.0}, 1);
+    arx_model.set_borders_u({-1.0, 1.0});
+    arx_model.set_borders_y({-1.0, 1.0});
+
+    // Twardy reset PID
+    RegulatorPID regulator_pid(0.5, 5.0, 0.0);
+    regulator_pid.setLiczCalk(RegulatorPID::LiczCalk::Zew);
+
+    // Twardy reset Generatora
+    FunctionGenerator func_gen(1.0, 10.0, 50, 0.0, 0.5);
+    func_gen.set_function_type(FunctionGenerator::FunctionType::SQUARE);
 
     m_uar = std::make_unique<UAR>(arx_model, regulator_pid, func_gen);
 }

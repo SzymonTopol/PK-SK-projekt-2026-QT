@@ -48,6 +48,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(&ServicesManager::getInstance(), &ServicesManager::peerConnectionChanged, this, &MainWindow::onPeerConnectionChanged);
     connect(&ServicesManager::getInstance(), &ServicesManager::networkConfigReceived, this, &MainWindow::onNetworkConfigReceived);
+    hardResetApp();
 }
 
 MainWindow::~MainWindow()
@@ -402,25 +403,43 @@ void MainWindow::hardResetApp()
     on_btn_intergral_reset_clicked();
     ServicesManager &sm = ServicesManager::getInstance();
     sm.hardResetSimulation();
-    sm.setArxParams({0.0}, {0.0}, 1.0, 0.0);
+
+    // Wrzucamy dane ARX do ServicesManager
+    sm.setArxParams({-0.4, -0.6, 0.0}, {0.6, 0.4, 0.0}, 1, 0.0);
+    sm.setArxBorders({-1.0, 1.0}, {-1.0, 1.0});
 
     simulation_time_s = 0.0;
 
-    ui->input_setValue->setValue(0.0);
-    ui->input_PID_k->setValue(0.0);
-    ui->input_PID_Ti->setValue(0.0);
+    // --- Aktualizacja widoku GUI (według test.json) ---
+
+    // PID
+    ui->input_PID_k->setValue(0.5);
+    ui->input_PID_Ti->setValue(5.0);
     ui->input_PID_Td->setValue(0.0);
-    ui->comboBox_PID_error->setCurrentIndex(0);
-    ui->checkBox_setValue->setChecked(false);
-    ui->comboBox_GEN_function->setCurrentIndex(0);
-    ui->input_GEN_Amplitude->setValue(0.0);
-    ui->input_GEN__T->setValue(0.0);
+    ui->comboBox_PID_error->setCurrentIndex(0); // 0 to Zew
+
+    // Generator i sygnał
+    ui->checkBox_setValue->setChecked(true); // Używaj generatora
+    ui->comboBox_GEN_function->setCurrentIndex(1); // 1 to SQUARE
+    ui->input_GEN_Amplitude->setValue(1.0);
+    ui->input_GEN__T->setValue(10.0);
     ui->input_GEN_offset->setValue(0.0);
-    ui->input_GEN_fill->setValue(0.0);
-    ui->HorizontalSlider_ms_setup->setValue(50.0);
+    ui->input_GEN_fill->setValue(0.5);
+    ui->input_setValue->setValue(0.0);
+
+    // Czas próbkowania (50 ms) i okno (10s domyślnie)
+    ui->HorizontalSlider_ms_setup->setValue(50);
+    ui->spinBox_ms_setup->setValue(50);
     ui->horizontalSlider_time_frame->setValue(10);
     ui->spinBox_time_frame->setValue(10);
     time_window_s = 10;
+
+    // Wymuszenie załadowania tych danych z GUI do logiki
+    updatePID();
+    updateGEN();
+
+    autoRescaleCharts = true;
+    ui->checkBox->setCheckState(Qt::Checked);
 }
 
 // Obliczenie maksymalnej liczby punktów w oknie czasowym

@@ -1,5 +1,5 @@
-#include "FunctionGenerator.h"
 #define _USE_MATH_DEFINES
+#include "FunctionGenerator.h"
 #include <cmath>
 
 FunctionGenerator::FunctionGenerator(double amplitude, double T_RZ, int T_T, double steady) {
