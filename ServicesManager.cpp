@@ -15,8 +15,55 @@ ServicesManager::ServicesManager() {
     connect(m_networkManager.get(), &NetworkManager::peerDisconnected, this, [this](){
         emit peerConnectionChanged(false, "");
     });
-    connect(m_networkManager.get(), &NetworkManager::configReceived, this, [this](){
-        emit networkConfigReceived();
+    // connect(m_networkManager.get(), &NetworkManager::configReceived, this, [this](){
+    //     emit networkConfigReceived();
+    // });
+    connect(m_networkManager.get(), &NetworkManager::arxConfigReceived, this, [this](const QByteArray& payload){
+        if(m_uar) {
+            m_uar->getARX().deserializeConfig(payload);
+
+            // Kopiujemy stan z UAR do "cienia" w ServicesManager
+            m_arx_a = m_uar->getARX().getA();
+            m_arx_b = m_uar->getARX().getB();
+            m_arx_delay = m_uar->getARX().getK();
+            m_arx_noise = m_uar->getARX().getZ();
+
+            // Przepisujemy limity (zastępuje poprzedni komentarz)
+            m_border_u = m_uar->getARX().getBordersU();
+            m_border_y = m_uar->getARX().getBordersY();
+
+            emit networkConfigReceived();
+        }
+    });
+
+    connect(m_networkManager.get(), &NetworkManager::pidConfigReceived, this, [this](const QByteArray& payload){
+        if(m_uar) {
+            m_uar->getRegulatorPID().deserializeConfig(payload);
+
+            m_pid_p = m_uar->getRegulatorPID().getK();
+            m_pid_ti = m_uar->getRegulatorPID().getTi();
+            m_pid_td = m_uar->getRegulatorPID().getTd();
+            m_LiczCalk = m_uar->getRegulatorPID().getLiczCalk();
+
+            emit networkConfigReceived();
+        }
+    });
+
+    connect(m_networkManager.get(), &NetworkManager::genConfigReceived, this, [this](const QByteArray& payload){
+        if(m_uar) {
+            m_uar->getFunctionGenerator().deserializeConfig(payload);
+
+            m_gen_amplitude = m_uar->getFunctionGenerator().getAmplitude();
+            m_gen_offset = m_uar->getFunctionGenerator().getOffset();
+            m_gen_fill = m_uar->getFunctionGenerator().getSquareFilling();
+            m_gen_type = m_uar->getFunctionGenerator().getType();
+
+            // Odwrócenie wzoru z FunctionGenerator: _T = round(T_RZ * 1000.0 / T_T)
+            // Zakładamy, że T_T (m_gen_sample_ms) jest lokalne i się nie zmieniło przez sieć
+            m_gen_frequency = (m_uar->getFunctionGenerator().getT() * m_gen_sample_ms) / 1000.0;
+
+            emit networkConfigReceived();
+        }
     });
 }
 

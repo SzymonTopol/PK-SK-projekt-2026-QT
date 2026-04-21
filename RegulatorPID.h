@@ -58,6 +58,12 @@ public:
 
     QByteArray serializeConfig() const;
     void deserializeConfig(const QByteArray& buf);
+
+    double getK() const { return k; }
+    double getTi() const { return Ti; }
+    double getTd() const { return Td; }
+    LiczCalk getLiczCalk() const { return liczCalk; }
+
 };
 
 

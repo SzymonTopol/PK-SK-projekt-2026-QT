@@ -38,6 +38,10 @@ signals:
     void peerConnected(const QString& peerIp);
     void peerDisconnected();
     void configReceived();
+
+    void arxConfigReceived(const QByteArray& payload);
+    void pidConfigReceived(const QByteArray& payload);
+    void genConfigReceived(const QByteArray& payload);
 };
 
 #endif // NETWORKMANAGER_H

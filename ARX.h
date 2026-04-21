@@ -55,6 +55,14 @@ public:
     // Dodane do sieci
     QByteArray serializeConfig() const;
     void deserializeConfig(const QByteArray& buf);
+
+    // Gettery do synchronizacji stanu z ServicesManager
+    std::vector<double> getA() const { return A; }
+    std::vector<double> getB() const { return B; }
+    int getK() const { return K; }
+    double getZ() const { return z; }
+    Borders getBordersU() const { return borders_u; }
+    Borders getBordersY() const { return borders_y; }
 };
 
 #endif // ARX_H

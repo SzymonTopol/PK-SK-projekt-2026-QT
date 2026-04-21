@@ -30,6 +30,13 @@ public:
     QByteArray serializeConfig() const;
     void deserializeConfig(const QByteArray& buf);
 
+    // Gettery do synchronizacji stanu z ServicesManager
+    double getAmplitude() const { return _Amplitude; }
+    double getOffset() const { return _Steady; }
+    double getSquareFilling() const { return _p; }
+    FunctionType getType() const { return _type; }
+    int getT() const { return _T; }
+
 private:
     double _Amplitude = 1.0;        // amplituda
     double _Steady = 0.0;        // składowa stała (offset)
