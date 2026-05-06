@@ -49,6 +49,16 @@ MainWindow::MainWindow(QWidget *parent)
     connect(&ServicesManager::getInstance(), &ServicesManager::peerConnectionChanged, this, &MainWindow::onPeerConnectionChanged);
     connect(&ServicesManager::getInstance(), &ServicesManager::networkConfigReceived, this, &MainWindow::onNetworkConfigReceived);
     hardResetApp();
+
+    connect(&ServicesManager::getInstance(), &ServicesManager::syncStatusChanged, this, [](bool inSync){
+        if(inSync) {
+            // Tu zmień kolor jakiejś kontrolki na zielony
+            qDebug() << "Symulacja działa synchronicznie! (ZIELONY)";
+        } else {
+            // Tu zmień kolor jakiejś kontrolki na czerwony
+            qDebug() << "Zbyt wolna odpowiedź od obiektu! (CZERWONY)";
+        }
+    });
 }
 
 MainWindow::~MainWindow()
@@ -886,10 +896,10 @@ void MainWindow::UpdateUIAfterLoad()
 
 
 
-    // ui->input_GEN_Amplitude->setValue(sm.getGenAmp());
-    // ui->input_GEN__T->setValue(sm.getGenFreq());
-    // ui->input_GEN_offset->setValue(sm.getGenOffset());
-    // ui->input_GEN_fill->setValue(sm.getGenfill());
+    ui->input_GEN_Amplitude->setValue(sm.getGenAmp());
+    ui->input_GEN__T->setValue(sm.getGenFreq());
+    ui->input_GEN_offset->setValue(sm.getGenOffset());
+    ui->input_GEN_fill->setValue(sm.getGenfill());
 
     // Ustawienie wartości w ComboBox (to robimy zawsze, żeby widok zgadzał się z danymi, niezależnie od blokad)
     if (sm.getGenType() == FunctionGenerator::FunctionType::SIN) {
@@ -1054,3 +1064,5 @@ void MainWindow::unblockControls(){
     ui->checkBox_setValue->setEnabled(true);
 
 }
+
+

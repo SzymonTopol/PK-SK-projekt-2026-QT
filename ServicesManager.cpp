@@ -61,6 +61,40 @@ ServicesManager::ServicesManager() {
             emit networkConfigReceived();
         }
     });
+
+    // ODBIÓR NA SERWERZE
+    connect(m_networkManager.get(), &NetworkManager::tickRegulatorReceived, this, [this](double u, double w, uint32_t seqNum){
+        if (m_uar && m_is_server_mode) {
+            // 1. Liczymy wyjście z obiektu
+            double y = m_uar->run_server_calc(u);
+
+            // 2. Wrzucamy do historii i odświeżamy wykresy
+            m_uar->commit_server_step(w, u, y, seqNum);
+            emit SimulationUpdated();
+
+            // 3. Odsyłamy szybciutko 'y' z powrotem do Klienta
+            NetProto::PayloadTickObject payload;
+            payload.y = y;
+            QByteArray data(reinterpret_cast<const char*>(&payload), sizeof(payload));
+            m_networkManager->sendPacket(NetProto::MsgType::TICK_OBJECT, data, seqNum);
+        }
+    });
+
+    // ODBIÓR NA KLIENCIE
+    connect(m_networkManager.get(), &NetworkManager::tickObjectReceived, this, [this](double y, uint32_t seqNum){
+        if (m_uar && !m_is_server_mode) {
+            // Czy odpowiedź dotyczy obecnego kroku?
+            if (seqNum == m_current_step - 1) {
+                m_received_y_for_current_step = true; // ZDĄŻYŁ!
+                m_last_known_y = y;
+                emit syncStatusChanged(true); // Zielone światło w GUI
+
+                // Zapisujemy wyliczony krok w historii i rysujemy go na wykresie
+                m_uar->commit_client_step(m_last_client_tick, y, seqNum);
+                emit SimulationUpdated();
+            }
+        }
+    });
 }
 
 ServicesManager &ServicesManager::getInstance() {
@@ -105,15 +139,45 @@ void ServicesManager::onTimerTimeout() {
 void ServicesManager::runNextStep() {
     if (!m_uar) return;
 
-    if (m_use_generator) {
-        m_uar->simulateWithGenerator();
-    } else {
-        // Używamy zapamiętanej wartości zadanej
-        m_uar->simulate(m_manual_setpoint);
+    // Wartość zadana (Generator lub stała)
+    double setpoint = m_use_generator ? m_uar->getFunctionGenerator().get_value(m_current_step) : m_manual_setpoint;
+
+    // 1. TRYB STACJONARNY (jeśli brak neta)
+    if (!m_networkManager->isConnected()) {
+        m_uar->simulate(setpoint);
+        m_current_step++;
+        emit SimulationUpdated();
+        return;
     }
 
-    // Ważne: powiadamiamy GUI, że mamy nowe dane!
-    emit SimulationUpdated();
+    // 2. TRYB SIECIOWY - SERWER (Ignoruje uderzenia lokalnego timera!)
+    if (m_is_server_mode) {
+        return;
+    }
+
+    // 3. TRYB SIECIOWY - KLIENT (Główny narzucający tempo)
+    // Sprawdzamy czy poprzedni pakiet zdążył wrócić
+    if (!m_received_y_for_current_step && m_current_step > 0) {
+        emit syncStatusChanged(false); // ZGUBIONY PAKIET! (Czerwone światło)
+
+        // Program MUSI pracować dalej (wymóg PDF), więc ratujemy się starym 'y'
+        m_uar->commit_client_step(m_last_client_tick, m_last_known_y, m_current_step - 1);
+        emit SimulationUpdated();
+    }
+
+    // Wyliczamy pierwszą połówkę nowego kroku
+    m_last_client_tick = m_uar->run_client_calc(setpoint, m_last_known_y);
+
+    // Pakujemy sygnał sterujący (u) i wartość zadaną (w) dla Serwera
+    NetProto::PayloadTickRegulator payload;
+    payload.u = m_last_client_tick.u;
+    payload.w = setpoint;
+
+    QByteArray data(reinterpret_cast<const char*>(&payload), sizeof(payload));
+    m_networkManager->sendPacket(NetProto::MsgType::TICK_REGULATOR, data, m_current_step);
+
+    m_received_y_for_current_step = false; // Zakładamy opóźnienie, aż nie przyjdzie paczka
+    m_current_step++;
 }
 
 void ServicesManager::setArxParams(const std::vector<double> &a, const std::vector<double> &b, int delay, double noise) {
@@ -186,6 +250,8 @@ void ServicesManager::applyParams() {
         gen.set_square_filling(m_gen_fill);
         m_timer->setInterval(m_gen_sample_ms);
     }
+
+    broadcastConfiguration();
 }
 
 
@@ -371,14 +437,13 @@ void ServicesManager::testSerialization() {
 // --- FUNKCJE SIECIOWE ---
 
 void ServicesManager::setupAsServer() {
-    if(m_networkManager) {
-        m_networkManager->startServer(12345);
-    }
+    m_is_server_mode = true;
+    if(m_networkManager) m_networkManager->startServer(12345);
 }
 
 void ServicesManager::connectAndSendConfigAsClient(const QString& ip) {
     if(!m_networkManager) return;
-
+    m_is_server_mode = false;
     m_networkManager->connectToServer(ip, 12345);
 
     QTimer::singleShot(500, this, [this]() {
@@ -401,4 +466,18 @@ void ServicesManager::connectAndSendConfigAsClient(const QString& ip) {
             qDebug() << "Błąd: Nie udało się połączyć lub brak symulacji (UAR).";
         }
     });
+}
+
+void ServicesManager::broadcastConfiguration() {
+    // Sprawdzamy czy symulacja żyje i czy jesteśmy połączeni z drugą aplikacją
+    if (!m_uar || !m_networkManager || !m_networkManager->isConnected()) {
+        return;
+    }
+
+    // Wysyłamy paczki z nową konfiguracją
+    m_networkManager->sendPacket(NetProto::MsgType::CONFIG_ARX, m_uar->getARX().serializeConfig());
+    m_networkManager->sendPacket(NetProto::MsgType::CONFIG_PID, m_uar->getRegulatorPID().serializeConfig());
+    m_networkManager->sendPacket(NetProto::MsgType::CONFIG_GEN, m_uar->getFunctionGenerator().serializeConfig());
+
+    qDebug() << "Rozgłoszono nową konfigurację przez sieć!";
 }

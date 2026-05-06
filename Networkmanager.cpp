@@ -86,7 +86,7 @@ bool NetworkManager::isConnected() const {
 }
 
 // --- WYSYŁANIE ---
-void NetworkManager::sendPacket(NetProto::MsgType type, const QByteArray& payload) {
+void NetworkManager::sendPacket(NetProto::MsgType type, const QByteArray& payload, uint32_t seqNum) {
     if (!isConnected()) {
         qDebug() << "Brak połączenia! Nie można wysłać danych.";
         return;
@@ -95,7 +95,7 @@ void NetworkManager::sendPacket(NetProto::MsgType type, const QByteArray& payloa
     NetProto::PacketHeader header;
     header.totalSize = sizeof(NetProto::PacketHeader) + payload.size();
     header.type = type;
-    header.seqNum = 0; // Dla konfiguracji numer próbki nas na razie nie interesuje
+    header.seqNum = seqNum; // Dla konfiguracji numer próbki nas na razie nie interesuje
 
     QByteArray packet;
     packet.append(reinterpret_cast<const char*>(&header), sizeof(NetProto::PacketHeader));
@@ -165,6 +165,18 @@ void NetworkManager::onReadyRead() {
         case NetProto::MsgType::CONFIG_GEN:
             emit genConfigReceived(payload);
             break;
+        case NetProto::MsgType::TICK_REGULATOR: {
+            NetProto::PayloadTickRegulator p;
+            memcpy(&p, payload.constData(), sizeof(p));
+            emit tickRegulatorReceived(p.u, p.w, header.seqNum);
+            break;
+        }
+        case NetProto::MsgType::TICK_OBJECT: {
+            NetProto::PayloadTickObject p;
+            memcpy(&p, payload.constData(), sizeof(p));
+            emit tickObjectReceived(p.y, header.seqNum);
+            break;
+        }
         default:
             qDebug() << "Odebrano wiadomosc nieobslugiwanego typu.";
             break;

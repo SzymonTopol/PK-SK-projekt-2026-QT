@@ -70,3 +70,47 @@ void UAR::reset() {
     step_count = 0;
 }
 
+// ==========================================
+// TRYB SIECIOWY - KLIENT (Regulator + Generator)
+// ==========================================
+ClientTickData UAR::run_client_calc(double setpoint, double current_y) {
+    // Klient liczy uchyb i wyjście z PID, ale czeka na y od obiektu
+    double e = setpoint - current_y;
+    double u = regulatorPID->simulate(e);
+
+    ClientTickData data;
+    data.w = setpoint;
+    data.e = e;
+    data.u = u;
+    data.pid_values = regulatorPID->getLastPidValues();
+    return data;
+}
+
+void UAR::commit_client_step(const ClientTickData& data, double y, long long step) {
+    output_history.push_back({step, y, data.u, data.e, data.w, data.pid_values});
+    if (output_history.size() > max_output_history) {
+        output_history.pop_front();
+    }
+    step_count = step + 1; // Aktualizujemy globalny krok
+}
+
+// ==========================================
+// TRYB SIECIOWY - SERWER (Obiekt ARX)
+// ==========================================
+double UAR::run_server_calc(double u) {
+    // Serwer ma za zadanie tylko wyliczyć równanie różnicowe ARX
+    return modelARX->simulate(u);
+}
+
+void UAR::commit_server_step(double w, double u, double y, long long step) {
+    // Serwer nie ma danych o e oraz PID (uzupełniamy 0 lub uproszczonym uchybem)
+    double e = w - y;
+    RegulatorPID::last_pid_values empty_pid = {0,0,0};
+
+    output_history.push_back({step, y, u, e, w, empty_pid});
+    if (output_history.size() > max_output_history) {
+        output_history.pop_front();
+    }
+    step_count = step + 1;
+}
+

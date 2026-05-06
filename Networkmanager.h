@@ -20,7 +20,8 @@ public:
     void disconnect();
 
     // Uniwersalna metoda do wysyłania paczek
-    void sendPacket(NetProto::MsgType type, const QByteArray& payload);
+    //void sendPacket(NetProto::MsgType type, const QByteArray& payload);
+    void sendPacket(NetProto::MsgType type, const QByteArray& payload, uint32_t seqNum = 0);
 
     bool isConnected() const;
 
@@ -42,6 +43,9 @@ signals:
     void arxConfigReceived(const QByteArray& payload);
     void pidConfigReceived(const QByteArray& payload);
     void genConfigReceived(const QByteArray& payload);
+
+    void tickRegulatorReceived(double u, double w, uint32_t seqNum);
+    void tickObjectReceived(double y, uint32_t seqNum);
 };
 
 #endif // NETWORKMANAGER_H

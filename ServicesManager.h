@@ -140,6 +140,7 @@ signals:
     void SimulationUpdated();
     void peerConnectionChanged(bool connected, const QString& ip);
     void networkConfigReceived();
+    void syncStatusChanged(bool inSync); // Poinformuje GUI czy symulacja się wyrabia
 private slots:
     void onTimerTimeout();
 private:
@@ -177,6 +178,14 @@ private:
     std::unique_ptr<UAR> m_uar = nullptr;
 
     std::unique_ptr<NetworkManager> m_networkManager;
+
+    void broadcastConfiguration();
+
+    bool m_is_server_mode = false;
+    bool m_received_y_for_current_step = true; // Flaga wyrabiania się
+    double m_last_known_y = 0.0;
+    ClientTickData m_last_client_tick;
+    uint32_t m_current_step = 0;
 };
 
 
