@@ -47,7 +47,9 @@ void NetworkManager::onNewConnection() {
         return;
     }
 
+    // m_socket = clientSocket;
     m_socket = clientSocket;
+    m_socket->setSocketOption(QAbstractSocket::LowDelayOption, 1); //wyłączanie nagle'a
     // Przepinamy sygnały do nowego gniazda
     connect(m_socket, &QTcpSocket::readyRead, this, &NetworkManager::onReadyRead);
     connect(m_socket, &QTcpSocket::disconnected, this, &NetworkManager::onDisconnected);
@@ -73,7 +75,11 @@ void NetworkManager::disconnect() {
 
 void NetworkManager::onConnected() {
     qDebug() << "Połączono z serwerem pomyślnie!";
+    // emit peerConnected(m_socket->peerAddress().toString());
+
+    m_socket->setSocketOption(QAbstractSocket::LowDelayOption, 1); // Wyłącza Nagle'a
     emit peerConnected(m_socket->peerAddress().toString());
+
 }
 
 void NetworkManager::onDisconnected() {
@@ -175,6 +181,12 @@ void NetworkManager::onReadyRead() {
             NetProto::PayloadTickObject p;
             memcpy(&p, payload.constData(), sizeof(p));
             emit tickObjectReceived(p.y, header.seqNum);
+            break;
+        }
+        case NetProto::MsgType::CONFIG_INTERVAL: {
+            int interval;
+            memcpy(&interval, payload.constData(), sizeof(int));
+            emit intervalConfigReceived(interval);
             break;
         }
         default:

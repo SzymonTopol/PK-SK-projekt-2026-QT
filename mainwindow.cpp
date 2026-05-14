@@ -1017,7 +1017,20 @@ void MainWindow::onPeerConnectionChanged(bool connected, const QString& ip)
         unblockControls();
         ui->btn_ARX_change_popup->setEnabled(true);
         ui->btn_ARX_change_popup_borders->setEnabled(true);
-        QMessageBox::warning(this, "Rozłączono", "Zerwano połączenie sieciowe. Aplikacja wraca do trybu stacjonarnego.");
+        // QMessageBox::warning(this, "Rozłączono", "Zerwano połączenie sieciowe. Aplikacja wraca do trybu stacjonarnego.");
+
+        // ZAMIAST TEGO:
+        // QMessageBox::warning(this, "Rozłączono", "Zerwano połączenie sieciowe. Aplikacja wraca do trybu stacjonarnego.");
+
+        // DAJ TO:
+        QMessageBox *msgBox = new QMessageBox(QMessageBox::Warning,
+                                              "Rozłączono",
+                                              "Zerwano połączenie sieciowe. Aplikacja wraca do trybu stacjonarnego.",
+                                              QMessageBox::Ok,
+                                              this);
+        msgBox->setWindowModality(Qt::NonModal);    // Zdejmujemy blokadę głównego okna!
+        msgBox->setAttribute(Qt::WA_DeleteOnClose); // Qt samo posprząta pamięć po zamknięciu okienka
+        msgBox->show();                             // show() zamiast exec()
     }
 }
 

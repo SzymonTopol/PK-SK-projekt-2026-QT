@@ -46,6 +46,8 @@ signals:
 
     void tickRegulatorReceived(double u, double w, uint32_t seqNum);
     void tickObjectReceived(double y, uint32_t seqNum);
+
+    void intervalConfigReceived(int ms);
 };
 
 #endif // NETWORKMANAGER_H

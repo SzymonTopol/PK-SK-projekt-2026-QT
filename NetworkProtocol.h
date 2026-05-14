@@ -11,7 +11,8 @@ enum class MsgType : uint8_t {
     CONFIG_PID = 0x03,     // Zserializowana konfiguracja PID
     CONFIG_ARX = 0x04,     // Zserializowana konfiguracja ARX
     SIM_CTRL = 0x05,       // Komendy sterujące (Start, Stop, Interwał)
-    CONFIG_GEN = 0x06      // Zserializowana konfiguracja Generatora
+    CONFIG_GEN = 0x06,     // Zserializowana konfiguracja Generatora
+    CONFIG_INTERVAL = 0x07  // Zmiana interwału symulacji (tylko SIM_CTRL?)
 };
 
 #pragma pack(push, 1) // wymuszony brak wyrównywania bajtów w strukturze

@@ -12,8 +12,22 @@ ServicesManager::ServicesManager() {
     connect(m_networkManager.get(), &NetworkManager::peerConnected, this, [this](const QString& ip){
         emit peerConnectionChanged(true, ip);
     });
+    // connect(m_networkManager.get(), &NetworkManager::peerDisconnected, this, [this](){
+    //     emit peerConnectionChanged(false, "");
+    // });
+
     connect(m_networkManager.get(), &NetworkManager::peerDisconnected, this, [this](){
-        emit peerConnectionChanged(false, "");
+        emit peerConnectionChanged(false, ""); // To już powiadomi GUI i wyrzuci QMessageBox
+
+        // 1. Obie aplikacje stają się stacjonarne (wyłączamy tryb serwera)
+        m_is_server_mode = false;
+
+        // 2. Jeśli Klient zawiesił się w oczekiwaniu na pakiet (czerwona flaga), zdejmujemy blokadę
+        m_received_y_for_current_step = true;
+
+        // 3. Wymuszamy start zegara. Jeśli to był Serwer, jego timer stał, więc teraz ruszy
+        // i będzie kontynuował na lokalnych parametrach[cite: 36].
+        startSimulation();
     });
     // connect(m_networkManager.get(), &NetworkManager::configReceived, this, [this](){
     //     emit networkConfigReceived();
@@ -63,7 +77,7 @@ ServicesManager::ServicesManager() {
     });
 
     // ODBIÓR NA SERWERZE
-    connect(m_networkManager.get(), &NetworkManager::tickRegulatorReceived, this, [this](double u, double w, uint32_t seqNum){
+    /*connect(m_networkManager.get(), &NetworkManager::tickRegulatorReceived, this, [this](double u, double w, uint32_t seqNum){
         if (m_uar && m_is_server_mode) {
             // 1. Liczymy wyjście z obiektu
             double y = m_uar->run_server_calc(u);
@@ -77,6 +91,23 @@ ServicesManager::ServicesManager() {
             payload.y = y;
             QByteArray data(reinterpret_cast<const char*>(&payload), sizeof(payload));
             m_networkManager->sendPacket(NetProto::MsgType::TICK_OBJECT, data, seqNum);
+        }
+    });*/
+
+    connect(m_networkManager.get(), &NetworkManager::tickRegulatorReceived, this, [this](double u, double w, uint32_t seqNum){
+        if (m_uar && m_is_server_mode) {
+            // 1. Liczymy wyjście z obiektu
+            double y = m_uar->run_server_calc(u);
+
+            // 2. NAJPIERW odsyłamy 'y' z powrotem do Klienta (odblokowujemy go!)
+            NetProto::PayloadTickObject payload;
+            payload.y = y;
+            QByteArray data(reinterpret_cast<const char*>(&payload), sizeof(payload));
+            m_networkManager->sendPacket(NetProto::MsgType::TICK_OBJECT, data, seqNum);
+
+            // 3. DOPIERO POTEM wrzucamy do historii i odświeżamy wykresy u siebie
+            m_uar->commit_server_step(w, u, y, seqNum);
+            emit SimulationUpdated();
         }
     });
 
@@ -94,6 +125,14 @@ ServicesManager::ServicesManager() {
                 emit SimulationUpdated();
             }
         }
+    });
+
+    connect(m_networkManager.get(), &NetworkManager::intervalConfigReceived, this, [this](int ms){
+        m_gen_sample_ms = ms;
+        m_timer->setInterval(ms);
+        // Wywołanie tego sygnału odpali Twoje UpdateUIAfterLoad() w MainWindow
+        // i pięknie zaktualizuje położenie suwaków u Serwera
+        emit networkConfigReceived();
     });
 }
 
@@ -119,8 +158,14 @@ void ServicesManager::stopSimulation() {
 }
 
 void ServicesManager::setSimulationInterval(int ms) {
-    m_gen_sample_ms = ms; // Aktualizujemy zmienną modelu
-    m_timer->setInterval(ms); // Aktualizujemy timer
+    m_gen_sample_ms = ms;
+    m_timer->setInterval(ms);
+
+    // Jeśli jesteśmy KLIENTEM i jesteśmy połączeni, powiadamiamy serwer o nowym czasie
+    if (m_networkManager && m_networkManager->isConnected() && !m_is_server_mode) {
+        QByteArray data(reinterpret_cast<const char*>(&ms), sizeof(int));
+        m_networkManager->sendPacket(NetProto::MsgType::CONFIG_INTERVAL, data);
+    }
 }
 
 bool ServicesManager::isSimulationRunning() const {
@@ -458,10 +503,16 @@ void ServicesManager::connectAndSendConfigAsClient(const QString& ip) {
             m_networkManager->sendPacket(NetProto::MsgType::CONFIG_PID, pidPayload);
             qDebug() << "Wysłano konfigurację PID!";
 
-            // GENERATOR (NOWE)
+            // GENERATOR
             QByteArray genPayload = m_uar->getFunctionGenerator().serializeConfig();
             m_networkManager->sendPacket(NetProto::MsgType::CONFIG_GEN, genPayload);
             qDebug() << "Wysłano konfigurację Generatora!";
+
+            // --- NOWE: WYSYŁANIE STARTOWEGO INTERWAŁU ---
+            QByteArray intervalData(reinterpret_cast<const char*>(&m_gen_sample_ms), sizeof(int));
+            m_networkManager->sendPacket(NetProto::MsgType::CONFIG_INTERVAL, intervalData);
+            qDebug() << "Wysłano początkowy interwał symulacji (" << m_gen_sample_ms << "ms)!";
+
         } else {
             qDebug() << "Błąd: Nie udało się połączyć lub brak symulacji (UAR).";
         }
