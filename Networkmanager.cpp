@@ -47,9 +47,9 @@ void NetworkManager::onNewConnection() {
         return;
     }
 
-    // m_socket = clientSocket;
     m_socket = clientSocket;
     m_socket->setSocketOption(QAbstractSocket::LowDelayOption, 1); //wyłączanie nagle'a
+
     // Przepinamy sygnały do nowego gniazda
     connect(m_socket, &QTcpSocket::readyRead, this, &NetworkManager::onReadyRead);
     connect(m_socket, &QTcpSocket::disconnected, this, &NetworkManager::onDisconnected);
@@ -108,7 +108,7 @@ void NetworkManager::sendPacket(NetProto::MsgType type, const QByteArray& payloa
     packet.append(payload);
 
     m_socket->write(packet);
-    m_socket->flush(); // Wymusza natychmiastowe wypchnięcie danych w sieć
+    m_socket->flush(); // Natychmiastowe wypchnięcie danych w sieć
 }
 
 void NetworkManager::onReadyRead() {

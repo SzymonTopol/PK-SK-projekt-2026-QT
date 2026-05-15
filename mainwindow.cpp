@@ -50,12 +50,10 @@ MainWindow::MainWindow(QWidget *parent)
     connect(&ServicesManager::getInstance(), &ServicesManager::networkConfigReceived, this, &MainWindow::onNetworkConfigReceived);
     hardResetApp();
 
-    connect(&ServicesManager::getInstance(), &ServicesManager::syncStatusChanged, this, [](bool inSync){
+    connect(&ServicesManager::getInstance(), &ServicesManager::syncStatusChanged, this, [](bool inSync){ //można potem dodać do jednej z kontrolek zmianę koloru
         if(inSync) {
-            // Tu zmień kolor jakiejś kontrolki na zielony
             qDebug() << "Symulacja działa synchronicznie! (ZIELONY)";
         } else {
-            // Tu zmień kolor jakiejś kontrolki na czerwony
             qDebug() << "Zbyt wolna odpowiedź od obiektu! (CZERWONY)";
         }
     });

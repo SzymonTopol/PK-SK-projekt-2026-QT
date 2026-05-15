@@ -77,35 +77,18 @@ ServicesManager::ServicesManager() {
     });
 
     // ODBIÓR NA SERWERZE
-    /*connect(m_networkManager.get(), &NetworkManager::tickRegulatorReceived, this, [this](double u, double w, uint32_t seqNum){
-        if (m_uar && m_is_server_mode) {
-            // 1. Liczymy wyjście z obiektu
-            double y = m_uar->run_server_calc(u);
-
-            // 2. Wrzucamy do historii i odświeżamy wykresy
-            m_uar->commit_server_step(w, u, y, seqNum);
-            emit SimulationUpdated();
-
-            // 3. Odsyłamy szybciutko 'y' z powrotem do Klienta
-            NetProto::PayloadTickObject payload;
-            payload.y = y;
-            QByteArray data(reinterpret_cast<const char*>(&payload), sizeof(payload));
-            m_networkManager->sendPacket(NetProto::MsgType::TICK_OBJECT, data, seqNum);
-        }
-    });*/
-
     connect(m_networkManager.get(), &NetworkManager::tickRegulatorReceived, this, [this](double u, double w, uint32_t seqNum){
         if (m_uar && m_is_server_mode) {
             // 1. Liczymy wyjście z obiektu
             double y = m_uar->run_server_calc(u);
 
-            // 2. NAJPIERW odsyłamy 'y' z powrotem do Klienta (odblokowujemy go!)
+            // 2. Odesłanie 'y' do klienta
             NetProto::PayloadTickObject payload;
             payload.y = y;
             QByteArray data(reinterpret_cast<const char*>(&payload), sizeof(payload));
             m_networkManager->sendPacket(NetProto::MsgType::TICK_OBJECT, data, seqNum);
 
-            // 3. DOPIERO POTEM wrzucamy do historii i odświeżamy wykresy u siebie
+            // 3. Wrzucenie do historii i rysowanie u siebie
             m_uar->commit_server_step(w, u, y, seqNum);
             emit SimulationUpdated();
         }
@@ -116,11 +99,11 @@ ServicesManager::ServicesManager() {
         if (m_uar && !m_is_server_mode) {
             // Czy odpowiedź dotyczy obecnego kroku?
             if (seqNum == m_current_step - 1) {
-                m_received_y_for_current_step = true; // ZDĄŻYŁ!
+                m_received_y_for_current_step = true;
                 m_last_known_y = y;
-                emit syncStatusChanged(true); // Zielone światło w GUI
+                emit syncStatusChanged(true);
 
-                // Zapisujemy wyliczony krok w historii i rysujemy go na wykresie
+                // Zapis kroku w historii i rysowanie u siebie
                 m_uar->commit_client_step(m_last_client_tick, y, seqNum);
                 emit SimulationUpdated();
             }
@@ -203,9 +186,8 @@ void ServicesManager::runNextStep() {
     // 3. TRYB SIECIOWY - KLIENT (Główny narzucający tempo)
     // Sprawdzamy czy poprzedni pakiet zdążył wrócić
     if (!m_received_y_for_current_step && m_current_step > 0) {
-        emit syncStatusChanged(false); // ZGUBIONY PAKIET! (Czerwone światło)
+        emit syncStatusChanged(false); //Sygnał na zgubienie pakietu
 
-        // Program MUSI pracować dalej (wymóg PDF), więc ratujemy się starym 'y'
         m_uar->commit_client_step(m_last_client_tick, m_last_known_y, m_current_step - 1);
         emit SimulationUpdated();
     }
