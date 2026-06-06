@@ -1011,7 +1011,7 @@ void MainWindow::onPeerConnectionChanged(bool connected, const QString& ip)
         ui->statusLabel->setText("🟢 Połączono z " + role + "\n(IP: " + ip + ")");
     } else {
         ui->statusLabel->setText("🔴 Połączenie zerwane");
-
+        this->isConnectedAsClient = false;
         unblockControls();
         ui->btn_ARX_change_popup->setEnabled(true);
         ui->btn_ARX_change_popup_borders->setEnabled(true);

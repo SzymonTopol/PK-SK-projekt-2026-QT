@@ -2,11 +2,6 @@
 #include "ServicesManager.h" // Żeby mieć dostęp do UAR
 #include <QDebug>
 
-
-#include "NetworkManager.h"
-#include "ServicesManager.h"
-#include <QDebug>
-
 NetworkManager::NetworkManager(QObject *parent) : QObject(parent) {
     m_socket = new QTcpSocket(this);
     m_server = new QTcpServer(this);
@@ -194,7 +189,6 @@ void NetworkManager::onReadyRead() {
             break;
         }
 
-
     }
-
 }
+
