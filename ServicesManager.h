@@ -8,6 +8,7 @@
 #include <QTimer>
 #include <vector>
 #include <QDebug>
+#include <deque>
 
 #include "Networkmanager.h"
 
@@ -186,6 +187,20 @@ private:
     double m_last_known_y = 0.0;
     ClientTickData m_last_client_tick;
     uint32_t m_current_step = 0;
+
+    // Licznik zgubionych ramek z rzędu dla Klienta
+    int m_consecutive_drops = 0;
+    // Próg, po którym zrywamy połączenie (np. po 5 zgubionych ramkach z rzędu)
+    const int MAX_DROPS_BEFORE_DISCONNECT = 5;
+
+    // Ostatni przetworzony numer sekwencyjny przez Serwer
+    uint32_t m_last_server_seq = 0;
+
+
+
+    // ... (Twoje wcześniejsze zmienne)
+    std::deque<bool> m_drop_history;  // true = zgubiona ramka, false = dotarła
+    int m_drops_in_history = 0;       // aktualna suma zgubionych ramek w oknie
 };
 
 

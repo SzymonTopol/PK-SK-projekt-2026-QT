@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1337</width>
-    <height>1040</height>
+    <height>1185</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -310,7 +310,7 @@
                 <size>
                  <width>0</width>
                  <height>20</height>
-                 </size>
+                </size>
                </property>
                <item>
                 <property name="text">
@@ -535,7 +535,7 @@
                <item>
                 <widget class="QSlider" name="HorizontalSlider_ms_setup">
                  <property name="minimum">
-                  <number>50</number>
+                  <number>5</number>
                  </property>
                  <property name="maximum">
                   <number>200</number>
@@ -554,7 +554,7 @@
                   </size>
                  </property>
                  <property name="minimum">
-                  <number>50</number>
+                  <number>5</number>
                  </property>
                  <property name="maximum">
                   <number>200</number>

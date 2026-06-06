@@ -17,16 +17,19 @@ ServicesManager::ServicesManager() {
     // });
 
     connect(m_networkManager.get(), &NetworkManager::peerDisconnected, this, [this](){
-        emit peerConnectionChanged(false, ""); // To już powiadomi GUI i wyrzuci QMessageBox
+        emit peerConnectionChanged(false, "");
 
-        // 1. Obie aplikacje stają się stacjonarne (wyłączamy tryb serwera)
         m_is_server_mode = false;
-
-        // 2. Jeśli Klient zawiesił się w oczekiwaniu na pakiet (czerwona flaga), zdejmujemy blokadę
         m_received_y_for_current_step = true;
 
-        // 3. Wymuszamy start zegara. Jeśli to był Serwer, jego timer stał, więc teraz ruszy
-        // i będzie kontynuował na lokalnych parametrach[cite: 36].
+        // Czyścimy liczniki (z rzędu i numery sekwencyjne)
+        m_consecutive_drops = 0;
+        m_last_server_seq = 0;
+
+        // NOWE: Czyścimy historię okna 5-sekundowego
+        m_drop_history.clear();
+        m_drops_in_history = 0;
+
         startSimulation();
     });
     // connect(m_networkManager.get(), &NetworkManager::configReceived, this, [this](){
@@ -79,6 +82,14 @@ ServicesManager::ServicesManager() {
     // ODBIÓR NA SERWERZE
     connect(m_networkManager.get(), &NetworkManager::tickRegulatorReceived, this, [this](double u, double w, uint32_t seqNum){
         if (m_uar && m_is_server_mode) {
+
+            // NOWE: Zabezpieczenie przed starymi ramkami (ignorujemy opóźnione pakiety)
+            if (seqNum <= m_last_server_seq && seqNum != 0) {
+                qDebug() << "Serwer: Odrzucam starą ramkę! seqNum:" << seqNum;
+                return;
+            }
+            m_last_server_seq = seqNum;
+
             // 1. Liczymy wyjście z obiektu
             double y = m_uar->run_server_calc(u);
 
@@ -163,7 +174,6 @@ void ServicesManager::onTimerTimeout() {
     runNextStep();
 }
 
-// Zmodyfikowana metoda runNextStep - nie przyjmuje argumentu, bierze z pola klasy
 void ServicesManager::runNextStep() {
     if (!m_uar) return;
 
@@ -185,11 +195,51 @@ void ServicesManager::runNextStep() {
 
     // 3. TRYB SIECIOWY - KLIENT (Główny narzucający tempo)
     // Sprawdzamy czy poprzedni pakiet zdążył wrócić
-    if (!m_received_y_for_current_step && m_current_step > 0) {
-        emit syncStatusChanged(false); //Sygnał na zgubienie pakietu
+    bool current_frame_dropped = (!m_received_y_for_current_step && m_current_step > 0);
+
+    // =========================================================
+    // NOWE: Mechanizm Okna Przesuwnego (ostatnie 5 sekund)
+    // =========================================================
+    int window_size = 5000 / (m_gen_sample_ms > 0 ? m_gen_sample_ms : 100); // Zabezpieczenie przed dzieleniem przez 0
+
+    m_drop_history.push_back(current_frame_dropped);
+    if (current_frame_dropped) m_drops_in_history++;
+
+    // Usuwamy najstarszą próbkę, jeśli okno urosło ponad 5 sekund
+    if (m_drop_history.size() > window_size) {
+        bool oldest = m_drop_history.front();
+        m_drop_history.pop_front();
+        if (oldest) m_drops_in_history--;
+    }
+
+    // Sprawdzamy, czy spadliśmy poniżej 60% odebranych pakietów
+    // (czyli czy ilość zgubionych ramek przekracza 40% wielkości okna)
+    bool too_many_drops_overall = (m_drop_history.size() == window_size) && (m_drops_in_history > window_size * 0.40);
+    // =========================================================
+
+    if (current_frame_dropped) {
+        emit syncStatusChanged(false);
+        m_consecutive_drops++;
+
+        // Awaryjne rozłączenie przy nagłym odcięciu LUB przy długotrwałej utracie pakietów
+        if (m_consecutive_drops >= MAX_DROPS_BEFORE_DISCONNECT || too_many_drops_overall) {
+            qDebug() << "KRYTYCZNY SPADEK JAKOŚCI SIECI. Zrywam połączenie!";
+            if (too_many_drops_overall) {
+                qDebug() << "Powód: Odsetek zgubionych ramek w ostatnich 5s przekroczył 40%.";
+            } else {
+                qDebug() << "Powód: Zgubiono" << m_consecutive_drops << "ramek z rzędu.";
+            }
+
+            m_networkManager->disconnect();
+
+            // Wychodzimy, czyszczenie i tak zrobi lambda peerDisconnected
+            return;
+        }
 
         m_uar->commit_client_step(m_last_client_tick, m_last_known_y, m_current_step - 1);
         emit SimulationUpdated();
+    } else {
+        m_consecutive_drops = 0;
     }
 
     // Wyliczamy pierwszą połówkę nowego kroku

@@ -5,6 +5,7 @@
 #include "arx_change_popup.h"
 #include "arx_change_limits.h"
 #include "ServicesManager.h"
+#include <QScatterSeries>
 
 #include <QTimer>
 #include <QtCharts>
@@ -139,6 +140,13 @@ private:
     QLineSeries *seriesP;
     QLineSeries *seriesI;
     QLineSeries *seriesD;
+
+
+
+    // W sekcji private podmień te dwie linijki:
+    QScatterSeries* seriesDroppedMain;
+    QScatterSeries* seriesDroppedY;
+    bool m_is_sync_dropped = false; // Zapamiętuje stan z sygnału
 
 };
 #endif // MAINWINDOW_H

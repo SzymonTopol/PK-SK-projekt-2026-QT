@@ -1,5 +1,6 @@
 #include <QApplication>
 #include <QMessageBox>
+#include <QtMath> // Wymagane dla qQNaN()
 
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
@@ -50,7 +51,9 @@ MainWindow::MainWindow(QWidget *parent)
     connect(&ServicesManager::getInstance(), &ServicesManager::networkConfigReceived, this, &MainWindow::onNetworkConfigReceived);
     hardResetApp();
 
-    connect(&ServicesManager::getInstance(), &ServicesManager::syncStatusChanged, this, [](bool inSync){ //można potem dodać do jednej z kontrolek zmianę koloru
+    connect(&ServicesManager::getInstance(), &ServicesManager::syncStatusChanged, this, [this](bool inSync){
+        m_is_sync_dropped = !inSync;
+
         if(inSync) {
             qDebug() << "Symulacja działa synchronicznie! (ZIELONY)";
         } else {
@@ -188,8 +191,6 @@ void MainWindow::on_btn_intergral_reset_clicked()
     ServicesManager &sm = ServicesManager::getInstance();
     sm.resetPidIntegral();
     qDebug() << "Pamięć całki regulatora PID zresetowana.";
-
-    // USUNIĘTO testSerialization()! To on psuł macierz ARX i wywalał wykresy w kosmos (NaN/Inf).
 }
 
 //=====GENERATOR=====
@@ -372,8 +373,10 @@ void MainWindow::on_btn_SIMULATION_reset_clicked()
     // 4. Czyszczenie danych z wykresów (serii)
     if(seriesSetpoint) seriesSetpoint->clear();
     if(seriesOutputMain) seriesOutputMain->clear();
+    if(seriesDroppedMain) seriesDroppedMain->clear(); // <-- NOWE
 
     if(seriesY) seriesY->clear();
+    if(seriesDroppedY) seriesDroppedY->clear();       // <-- NOWE
 
     // Uchyb
     if(seriesE) seriesE->clear();
@@ -400,6 +403,8 @@ void MainWindow::on_btn_SIMULATION_reset_clicked()
     // Wykres Sterowania (PID)
     if(axisX_U) axisX_U->setRange(0, time_window_s);
     if(axisY_U) axisY_U->setRange(-5, 5);
+
+    m_is_sync_dropped = false; // Reset flagi przy ręcznym restarcie
 
     qDebug() << "Symulacja i wszystkie wykresy zresetowane";
 }
@@ -505,6 +510,8 @@ void MainWindow::autoScaleYAxis(QValueAxis *axisX, QValueAxis *axisY, const QLis
             if (x > xMax) break;
 
             double y = p.y();
+            if (qIsNaN(y)) continue; // Pomijamy puste punkty (NaN) w skali
+
             if (y < yMin) yMin = y;
             if (y > yMax) yMax = y;
             foundAnyPoint = true;
@@ -544,6 +551,12 @@ void MainWindow::updateCharts()
     seriesSetpoint->append(time_s, lastPoint.w);
     seriesOutputMain->append(time_s, lastPoint.y);
 
+    // Dodajemy czerwoną kropkę TYLKO gdy zgubiono pakiet (Brak else z NaN!)
+    if (m_is_sync_dropped) {
+        seriesDroppedMain->append(time_s, lastPoint.y);
+        seriesDroppedY->append(time_s, lastPoint.y);
+    }
+
     // PID
     seriesP->append(time_s, lastPoint.pid_values.p);
     seriesI->append(time_s, lastPoint.pid_values.i);
@@ -557,6 +570,7 @@ void MainWindow::updateCharts()
     if(seriesSetpoint->count() > maxPoints) {
         seriesSetpoint->removePoints(0, 1);
         seriesOutputMain->removePoints(0, 1);
+        // USUNIĘTO: seriesDroppedMain->removePoints(0, 1);
     }
     if(seriesP->count() > maxPoints) {
         seriesP->removePoints(0, 1);
@@ -565,10 +579,37 @@ void MainWindow::updateCharts()
     }
     if(seriesY->count() > maxPoints) {
         seriesY->removePoints(0, 1);
+        // USUNIĘTO: seriesDroppedY->removePoints(0, 1);
     }
     if(seriesE->count() > maxPoints) {
         seriesE->removePoints(0, 1);
     }
+
+    // TUTAJ WKLEJ TEN MÓJ NOWY BEZPIECZNY BLOK DLA CZERWONYCH SERII Z POPRZEDNIEJ WIADOMOŚCI:
+    // --- BEZPIECZNE czyszczenie czerwonych kropek ---
+    double min_x = time_s - time_window_s;
+
+    // Główny wykres
+    int pointsToRemoveMain = 0;
+    for (int i = 0; i < seriesDroppedMain->count(); ++i) {
+        if (seriesDroppedMain->at(i).x() < min_x) pointsToRemoveMain++;
+        else break;
+    }
+    if (pointsToRemoveMain > 0) {
+        seriesDroppedMain->removePoints(0, pointsToRemoveMain);
+    }
+
+    // Wykres Y
+    int pointsToRemoveY = 0;
+    for (int i = 0; i < seriesDroppedY->count(); ++i) {
+        if (seriesDroppedY->at(i).x() < min_x) pointsToRemoveY++;
+        else break;
+    }
+    if (pointsToRemoveY > 0) {
+        seriesDroppedY->removePoints(0, pointsToRemoveY);
+    }
+
+
 
     // --- Aktualizacja osi X (przesuwanie okna) ---
     updateAllXAxesRange(time_s);
@@ -666,9 +707,18 @@ void MainWindow::setupCharts()
     seriesOutputMain->setName("Wyjście (y)");
     seriesOutputMain->setPen(QPen(Qt::blue, 1));
 
+    // NOWE: Seria punktowa dla gubienia pakietów
+    seriesDroppedMain = new QScatterSeries();
+    seriesDroppedMain->setName("Gubienie Pakietu");
+    seriesDroppedMain->setMarkerShape(QScatterSeries::MarkerShapeCircle);
+    seriesDroppedMain->setMarkerSize(8.0); // Rozmiar kropki
+    seriesDroppedMain->setColor(Qt::red);
+    seriesDroppedMain->setBorderColor(Qt::red);
+
     QChart *chartMain = new QChart();
     chartMain->addSeries(seriesSetpoint);
     chartMain->addSeries(seriesOutputMain);
+    chartMain->addSeries(seriesDroppedMain); // <--- DODANE
     chartMain->setMargins(QMargins(0, 0, 0, 0));
     chartMain->layout()->setContentsMargins(0, 0, 0, 0);
     chartMain->setBackgroundRoundness(0);
@@ -681,6 +731,7 @@ void MainWindow::setupCharts()
     chartMain->addAxis(axisX_Main, Qt::AlignBottom);
     seriesSetpoint->attachAxis(axisX_Main);
     seriesOutputMain->attachAxis(axisX_Main);
+    seriesDroppedMain->attachAxis(axisX_Main); // <--- DODANE
 
     axisY_Main = new QValueAxis();
     axisY_Main->setRange(-2, 2);
@@ -689,6 +740,7 @@ void MainWindow::setupCharts()
     chartMain->addAxis(axisY_Main, Qt::AlignLeft);
     seriesSetpoint->attachAxis(axisY_Main);
     seriesOutputMain->attachAxis(axisY_Main);
+    seriesDroppedMain->attachAxis(axisY_Main); // <--- DODANE
 
     ui->graphicsView_main->setChart(chartMain);
     ui->graphicsView_main->setRenderHint(QPainter:: Antialiasing);
@@ -701,8 +753,17 @@ void MainWindow::setupCharts()
     seriesY->setName("Wyjście (y)");
     seriesY->setPen(QPen(Qt::blue, 1));
 
+    // NOWE: Seria punktowa dla gubienia pakietów
+    seriesDroppedY = new QScatterSeries();
+    seriesDroppedY->setName("Gubienie Pakietu");
+    seriesDroppedY->setMarkerShape(QScatterSeries::MarkerShapeCircle);
+    seriesDroppedY->setMarkerSize(8.0);
+    seriesDroppedY->setColor(Qt::red);
+    seriesDroppedY->setBorderColor(Qt::red);
+
     QChart *chartY = new QChart();
     chartY->addSeries(seriesY);
+    chartY->addSeries(seriesDroppedY); // <--- DODANE
     chartY->setMargins(QMargins(0, 0, 0, 0));
     chartY->layout()->setContentsMargins(0, 0, 0, 0);
     chartY->setBackgroundRoundness(0);
@@ -714,6 +775,7 @@ void MainWindow::setupCharts()
     axisX_Y->setTickCount(6);
     chartY->addAxis(axisX_Y, Qt::AlignBottom);
     seriesY->attachAxis(axisX_Y);
+    seriesDroppedY->attachAxis(axisX_Y); // <--- DODANE
 
     axisY_Y = new QValueAxis();
     axisY_Y->setRange(-2, 2);
@@ -721,6 +783,7 @@ void MainWindow::setupCharts()
     axisY_Y->setTickCount(5);
     chartY->addAxis(axisY_Y, Qt:: AlignLeft);
     seriesY->attachAxis(axisY_Y);
+    seriesDroppedY->attachAxis(axisY_Y); // <--- DODANE
 
     ui->graphicsView_2->setChart(chartY);
     ui->graphicsView_2->setRenderHint(QPainter::Antialiasing);
@@ -864,35 +927,7 @@ void MainWindow::UpdateUIAfterLoad()
     ui->input_PID_Ti->setValue(sm.getPidTi());
     ui->input_PID_Td->setValue(sm.getPidTd());
 
-    // Generator / Zadana
-
-    // if (sm.getPidMethod() == RegulatorPID::LiczCalk::Wew)
-    //     ui->comboBox_PID_error->setCurrentIndex(1);
-    // else
-    //     ui->comboBox_PID_error->setCurrentIndex(0);
-
     bool useGen = sm.getUseGenerator();
-    // ui->checkBox_setValue->setChecked(useGen);
-
-    // // Odświeżenie stanu enabled/disabled pól
-    // ui->input_setValue->setEnabled(!useGen);
-    // ui->comboBox_GEN_function->setEnabled(useGen);
-    // ui->input_GEN_Amplitude->setEnabled(useGen);
-    // ui->input_GEN__T->setEnabled(useGen);
-    // ui->input_GEN_offset->setEnabled(useGen);
-
-    // if (sm.getGenType() == FunctionGenerator::FunctionType::SIN)
-    // {
-    //     ui->comboBox_GEN_function->setCurrentIndex(0);
-    //     ui->input_GEN_fill->setEnabled(false);
-    // }
-    // else
-    // {
-    //     ui->comboBox_GEN_function->setCurrentIndex(1);
-    //     ui->input_GEN_fill->setEnabled(true);
-    // }
-
-
 
     ui->input_GEN_Amplitude->setValue(sm.getGenAmp());
     ui->input_GEN__T->setValue(sm.getGenFreq());
@@ -1015,12 +1050,7 @@ void MainWindow::onPeerConnectionChanged(bool connected, const QString& ip)
         unblockControls();
         ui->btn_ARX_change_popup->setEnabled(true);
         ui->btn_ARX_change_popup_borders->setEnabled(true);
-        // QMessageBox::warning(this, "Rozłączono", "Zerwano połączenie sieciowe. Aplikacja wraca do trybu stacjonarnego.");
 
-        // ZAMIAST TEGO:
-        // QMessageBox::warning(this, "Rozłączono", "Zerwano połączenie sieciowe. Aplikacja wraca do trybu stacjonarnego.");
-
-        // DAJ TO:
         QMessageBox *msgBox = new QMessageBox(QMessageBox::Warning,
                                               "Rozłączono",
                                               "Zerwano połączenie sieciowe. Aplikacja wraca do trybu stacjonarnego.",
@@ -1029,6 +1059,7 @@ void MainWindow::onPeerConnectionChanged(bool connected, const QString& ip)
         msgBox->setWindowModality(Qt::NonModal);    // Zdejmujemy blokadę głównego okna!
         msgBox->setAttribute(Qt::WA_DeleteOnClose); // Qt samo posprząta pamięć po zamknięciu okienka
         msgBox->show();                             // show() zamiast exec()
+        m_is_sync_dropped = false; // Reset flagi po zerwaniu
     }
 }
 
@@ -1075,5 +1106,3 @@ void MainWindow::unblockControls(){
     ui->checkBox_setValue->setEnabled(true);
 
 }
-
-
