@@ -125,36 +125,6 @@ void NetworkManager::onReadyRead() {
         QByteArray payload = fullPacket.mid(sizeof(NetProto::PacketHeader));
 
         // Deserializacja w zależności od tego, co przyszło
-        // switch(header.type) {
-        // case NetProto::MsgType::CONFIG_ARX: {
-        //     // Odwołujemy się do Singletona ServicesManager, żeby dobrać się do instancji UAR
-        //     if(ServicesManager::getInstance().getUar() != nullptr) {
-        //         ServicesManager::getInstance().getUar()->getARX().deserializeConfig(payload);
-        //         qDebug() << "Odebrano nową konfigurację ARX!";
-        //     }
-        //     break;
-        // }
-        // case NetProto::MsgType::CONFIG_PID: {
-        //     if(ServicesManager::getInstance().getUar() != nullptr) {
-        //         ServicesManager::getInstance().getUar()->getRegulatorPID().deserializeConfig(payload);
-        //         qDebug() << "Odebrano nową konfigurację PID!";
-        //     }
-        //     break;
-        // }
-        // case NetProto::MsgType::CONFIG_GEN: {
-        //     if(ServicesManager::getInstance().getUar() != nullptr) {
-        //         ServicesManager::getInstance().getUar()->getFunctionGenerator().deserializeConfig(payload);
-        //         qDebug() << "Odebrano nową konfigurację Generatora!";
-        //     }
-        //     break;
-        // }
-        // default:
-        //     qDebug() << "Odebrano wiadomosc nieobslugiwanego typu.";
-        //         break;
-        // }
-        // emit configReceived();
-
-        // Deserializacja w zależności od tego, co przyszło
 
         switch(header.type) {
         case NetProto::MsgType::CONFIG_ARX:
@@ -182,6 +152,14 @@ void NetworkManager::onReadyRead() {
             int interval;
             memcpy(&interval, payload.constData(), sizeof(int));
             emit intervalConfigReceived(interval);
+            break;
+        }
+        case NetProto::MsgType::SIM_CTRL: {
+            NetProto::PayloadSimCtrl p;
+            memcpy(&p, payload.constData(), sizeof(p)); // Kopiujemy bajty z payloadu do struktury
+
+            // Emitujemy sygnał dalej (pamiętaj dodać go w NetworkManager.h i ServicesManager!)
+            emit simCommandReceived(p.command);
             break;
         }
         default:

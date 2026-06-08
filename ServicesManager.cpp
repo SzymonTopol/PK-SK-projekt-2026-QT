@@ -17,24 +17,23 @@ ServicesManager::ServicesManager() {
     // });
 
     connect(m_networkManager.get(), &NetworkManager::peerDisconnected, this, [this](){
-        emit peerConnectionChanged(false, "");
-
         m_is_server_mode = false;
         m_received_y_for_current_step = true;
 
-        // Czyścimy liczniki (z rzędu i numery sekwencyjne)
         m_consecutive_drops = 0;
         m_last_server_seq = 0;
-
-        // NOWE: Czyścimy historię okna 5-sekundowego
         m_drop_history.clear();
         m_drops_in_history = 0;
 
-        startSimulation();
+        // --- NOWE: Jeśli przed awarią internetu symulacja działała, to wznów lokalny zegar! ---
+        if (m_logical_is_running) {
+            if (m_timer->interval() <= 0) m_timer->setInterval(m_gen_sample_ms);
+            m_timer->start();
+        }
+
+        emit peerConnectionChanged(false, "");
     });
-    // connect(m_networkManager.get(), &NetworkManager::configReceived, this, [this](){
-    //     emit networkConfigReceived();
-    // });
+
     connect(m_networkManager.get(), &NetworkManager::arxConfigReceived, this, [this](const QByteArray& payload){
         if(m_uar) {
             m_uar->getARX().deserializeConfig(payload);
@@ -128,27 +127,15 @@ ServicesManager::ServicesManager() {
         // i pięknie zaktualizuje położenie suwaków u Serwera
         emit networkConfigReceived();
     });
+
+    connect(m_networkManager.get(), &NetworkManager::simCommandReceived, this, [this](NetProto::SimCommand cmd){
+        emit simCommandReceived(cmd);
+    });
 }
 
 ServicesManager &ServicesManager::getInstance() {
     static ServicesManager instance;
     return instance;
-}
-
-
-
-void ServicesManager::startSimulation() {
-    if (!m_timer->isActive()) {
-        // Upewniamy się, że timer ma poprawny interwał
-        if (m_timer->interval() <= 0) m_timer->setInterval(m_gen_sample_ms);
-        m_timer->start();
-    }
-}
-
-void ServicesManager::stopSimulation() {
-    if (m_timer->isActive()) {
-        m_timer->stop();
-    }
 }
 
 void ServicesManager::setSimulationInterval(int ms) {
@@ -163,7 +150,26 @@ void ServicesManager::setSimulationInterval(int ms) {
 }
 
 bool ServicesManager::isSimulationRunning() const {
-    return m_timer->isActive();
+    return m_logical_is_running; // Teraz GUI zawsze wie, czy symulacja powinna działać
+}
+
+void ServicesManager::startSimulation() {
+    m_logical_is_running = true; // Zapisujemy stan
+
+    // Serwer w trybie sieciowym NIE może włączyć lokalnego timera!
+    if (!m_is_server_mode) {
+        if (!m_timer->isActive()) {
+            if (m_timer->interval() <= 0) m_timer->setInterval(m_gen_sample_ms);
+            m_timer->start();
+        }
+    }
+}
+
+void ServicesManager::stopSimulation() {
+    m_logical_is_running = false; // Zapisujemy stan
+    if (m_timer->isActive()) {
+        m_timer->stop();
+    }
 }
 
 void ServicesManager::setManualSetpoint(double val) {

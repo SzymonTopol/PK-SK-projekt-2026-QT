@@ -48,6 +48,8 @@ signals:
     void tickObjectReceived(double y, uint32_t seqNum);
 
     void intervalConfigReceived(int ms);
+
+    void simCommandReceived(NetProto::SimCommand cmd);
 };
 
 #endif // NETWORKMANAGER_H

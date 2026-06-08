@@ -15,6 +15,12 @@ enum class MsgType : uint8_t {
     CONFIG_INTERVAL = 0x07  // Zmiana interwału symulacji (tylko SIM_CTRL?)
 };
 
+enum class SimCommand : uint8_t {
+    START = 1,
+    STOP = 2,
+    RESET = 3
+};
+
 #pragma pack(push, 1) // wymuszony brak wyrównywania bajtów w strukturze
 
 // Nagłówek każdej ramki
@@ -33,6 +39,10 @@ struct PayloadTickRegulator {
 // Ramka wysyłana z Serwera(Obiektu) z powrotem do Klienta(Regulatora)
 struct PayloadTickObject {
     double y; // Obliczona wartość regulowana przez ARX
+};
+
+struct PayloadSimCtrl {
+    SimCommand command;
 };
 
 #pragma pack(pop)

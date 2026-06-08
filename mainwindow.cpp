@@ -60,6 +60,16 @@ MainWindow::MainWindow(QWidget *parent)
             qDebug() << "Zbyt wolna odpowiedź od obiektu! (CZERWONY)";
         }
     });
+
+    connect(&ServicesManager::getInstance(), &ServicesManager::simCommandReceived, this, [this](NetProto::SimCommand cmd) {
+        if (cmd == NetProto::SimCommand::RESET) {
+            on_btn_SIMULATION_reset_clicked();
+        } else if (cmd == NetProto::SimCommand::START) {
+            on_btn_SIMULATION_start_clicked(); // Symulujemy kliknięcie u serwera
+        } else if (cmd == NetProto::SimCommand::STOP) {
+            on_btn_SIMULATION_stop_clicked();  // Symulujemy kliknięcie u serwera
+        }
+    });
 }
 
 MainWindow::~MainWindow()
@@ -334,28 +344,52 @@ void MainWindow::on_btn_SIMULATION_start_clicked()
 {
     ServicesManager &sm = ServicesManager::getInstance();
 
-    if (ServicesManager::getInstance().isSimulationRunning()) return;
+    if (sm.isSimulationRunning()) return;
     updatePID();
     updateGEN();
 
     sm.setManualSetpoint(ui->input_setValue->value());
     sm.startSimulation();
 
-    ui->btn_SIMULATION_start->setEnabled(false);
-    ui->btn_SIMULATION_stop->setEnabled(true);
+    // --- NOWE: Zabezpieczenie przed odblokowaniem u Serwera ---
+    bool isConnectedServer = sm.getNetworkManager()->isConnected() && sm.isServerMode();
+    if (!isConnectedServer) {
+        ui->btn_SIMULATION_start->setEnabled(false);
+        ui->btn_SIMULATION_stop->setEnabled(true);
+    }
 
     qDebug() << "Symulacja uruchomiona";
-}
 
+    // --- NOWE: Wysłanie w sieć START ---
+    if (this->isConnectedAsClient) {
+        NetProto::PayloadSimCtrl cmdPayload;
+        cmdPayload.command = NetProto::SimCommand::START;
+        QByteArray payloadData(reinterpret_cast<const char*>(&cmdPayload), sizeof(cmdPayload));
+        sm.getNetworkManager()->sendPacket(NetProto::MsgType::SIM_CTRL, payloadData, 0);
+    }
+}
 
 void MainWindow::on_btn_SIMULATION_stop_clicked()
 {
-    ServicesManager::getInstance().stopSimulation();
+    ServicesManager &sm = ServicesManager::getInstance();
+    sm.stopSimulation();
 
-    ui->btn_SIMULATION_start->setEnabled(true);
-    ui->btn_SIMULATION_stop->setEnabled(false);
+    // --- NOWE: Zabezpieczenie przed odblokowaniem u Serwera ---
+    bool isConnectedServer = sm.getNetworkManager()->isConnected() && sm.isServerMode();
+    if (!isConnectedServer) {
+        ui->btn_SIMULATION_start->setEnabled(true);
+        ui->btn_SIMULATION_stop->setEnabled(false);
+    }
 
     qDebug() << "Symulacja zatrzymana";
+
+    // --- NOWE: Wysłanie w sieć STOP ---
+    if (this->isConnectedAsClient) {
+        NetProto::PayloadSimCtrl cmdPayload;
+        cmdPayload.command = NetProto::SimCommand::STOP;
+        QByteArray payloadData(reinterpret_cast<const char*>(&cmdPayload), sizeof(cmdPayload));
+        sm.getNetworkManager()->sendPacket(NetProto::MsgType::SIM_CTRL, payloadData, 0);
+    }
 }
 
 void MainWindow::on_btn_SIMULATION_reset_clicked()
@@ -405,8 +439,21 @@ void MainWindow::on_btn_SIMULATION_reset_clicked()
     if(axisY_U) axisY_U->setRange(-5, 5);
 
     m_is_sync_dropped = false; // Reset flagi przy ręcznym restarcie
-
     qDebug() << "Symulacja i wszystkie wykresy zresetowane";
+
+    // --- NOWE: WYSYŁANIE KOMENDY W SIEĆ ---
+    // Wysyłamy tylko, jeśli jesteśmy Klientem (Regulatorem), który rządzi
+    if (isConnectedAsClient) {
+        NetProto::PayloadSimCtrl cmdPayload;
+        cmdPayload.command = NetProto::SimCommand::RESET;
+
+        QByteArray payloadData(reinterpret_cast<const char*>(&cmdPayload), sizeof(cmdPayload));
+
+        // Wywołujemy sendPacket (tutaj używam ServicesManager, musisz dodać taką metodę lub bezpośrednio zawołać NetworkManager)
+        ServicesManager::getInstance().getNetworkManager()->sendPacket(NetProto::MsgType::SIM_CTRL, payloadData, 0);
+        qDebug() << "Wysłano komendę RESET do Obiektu.";
+    }
+
 }
 
 //hard reset w menu na pasku
@@ -1051,6 +1098,12 @@ void MainWindow::onPeerConnectionChanged(bool connected, const QString& ip)
         ui->btn_ARX_change_popup->setEnabled(true);
         ui->btn_ARX_change_popup_borders->setEnabled(true);
 
+        // Sprawdzamy, czy symulacja leci, żeby nie odblokować guzika "Start", jeśli jest już uruchomiona
+        bool isRunning = ServicesManager::getInstance().isSimulationRunning();
+        ui->btn_SIMULATION_start->setEnabled(!isRunning);
+        ui->btn_SIMULATION_stop->setEnabled(isRunning);
+        ui->btn_SIMULATION_reset->setEnabled(true);
+
         QMessageBox *msgBox = new QMessageBox(QMessageBox::Warning,
                                               "Rozłączono",
                                               "Zerwano połączenie sieciowe. Aplikacja wraca do trybu stacjonarnego.",
@@ -1085,6 +1138,11 @@ void MainWindow::blockControls(){
     ui->input_setValue->setEnabled(false);
     ui->comboBox_GEN_function->setEnabled(false);
     ui->checkBox_setValue->setEnabled(false);
+
+    //Blokowanie przycisków symulacji
+    ui->btn_SIMULATION_start->setEnabled(false);
+    ui->btn_SIMULATION_stop->setEnabled(false);
+    ui->btn_SIMULATION_reset->setEnabled(false);
 
 }
 

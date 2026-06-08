@@ -132,6 +132,10 @@ public:
 
     //Pod przesyłanie sieciowe
     UAR* getUar() { return m_uar.get(); }
+    NetworkManager* getNetworkManager() const { return m_networkManager.get(); }
+
+    bool isServerMode() const { return m_is_server_mode; }
+
     void testSerialization();
 
     void setupAsServer();
@@ -142,6 +146,7 @@ signals:
     void peerConnectionChanged(bool connected, const QString& ip);
     void networkConfigReceived();
     void syncStatusChanged(bool inSync); // Poinformuje GUI czy symulacja się wyrabia
+    void simCommandReceived(NetProto::SimCommand cmd);
 private slots:
     void onTimerTimeout();
 private:
@@ -183,6 +188,7 @@ private:
     void broadcastConfiguration();
 
     bool m_is_server_mode = false;
+     bool m_logical_is_running = false; // <--- NOWE
     bool m_received_y_for_current_step = true; // Flaga wyrabiania się
     double m_last_known_y = 0.0;
     ClientTickData m_last_client_tick;
@@ -190,15 +196,14 @@ private:
 
     // Licznik zgubionych ramek z rzędu dla Klienta
     int m_consecutive_drops = 0;
-    // Próg, po którym zrywamy połączenie (np. po 5 zgubionych ramkach z rzędu)
-    const int MAX_DROPS_BEFORE_DISCONNECT = 5;
+    // Próg, po którym zrywamy połączenie
+    const int MAX_DROPS_BEFORE_DISCONNECT = 20;
 
     // Ostatni przetworzony numer sekwencyjny przez Serwer
     uint32_t m_last_server_seq = 0;
 
 
 
-    // ... (Twoje wcześniejsze zmienne)
     std::deque<bool> m_drop_history;  // true = zgubiona ramka, false = dotarła
     int m_drops_in_history = 0;       // aktualna suma zgubionych ramek w oknie
 };
