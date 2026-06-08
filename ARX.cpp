@@ -12,16 +12,29 @@ ARX::ARX(const std::vector<double> &a, const std::vector<double> &b, int delay, 
 
 void ARX::setA(const std::vector<double> &a) {
     this->A = a;
-    y.resize(A.size(), 0.0);
+    // Bezpieczne dopasowanie rozmiaru bufora y bez utraty starych danych
+    size_t needed_size = A.size();
+    while (y.size() < needed_size) y.push_front(0.0);
+    while (y.size() > needed_size) y.pop_front();
 }
 
 void ARX::setB(const std::vector<double> &b) {
     this->B = b;
-    u.resize(B.size() + K, 0.0);
+    // Bezpieczne dopasowanie rozmiaru bufora u
+    size_t needed_size = B.size() + K;
+    while (u.size() < needed_size) u.push_front(0.0);
+    while (u.size() > needed_size) u.pop_front();
 }
 
 void ARX::setK(int delay) {
-    this->K = (delay < 1) ? 1 : delay;
+    int new_k = (delay < 1) ? 1 : delay;
+    if (new_k != this->K) {
+        this->K = new_k;
+        // Zabezpieczenie przed asercją: gdy 'k' rośnie, wydłużamy historię 'u'
+        size_t needed_size = B.size() + K;
+        while (u.size() < needed_size) u.push_front(0.0);
+        while (u.size() > needed_size) u.pop_front();
+    }
 }
 
 void ARX::setZ(double noise_std_dev) {

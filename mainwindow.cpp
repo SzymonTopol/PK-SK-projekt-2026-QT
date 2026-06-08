@@ -791,7 +791,7 @@ void MainWindow::setupCharts()
 
     ui->graphicsView_main->setChart(chartMain);
     ui->graphicsView_main->setRenderHint(QPainter:: Antialiasing);
-    styleFloatingLegend(chartMain, 60);
+    styleFloatingLegend(chartMain, 80);
 
     // ==========================================
     // 2. WYKRES ŚRODKOWY (Samo wyjście y)
@@ -834,7 +834,7 @@ void MainWindow::setupCharts()
 
     ui->graphicsView_2->setChart(chartY);
     ui->graphicsView_2->setRenderHint(QPainter::Antialiasing);
-    styleFloatingLegend(chartY, 40);
+    styleFloatingLegend(chartY, 60);
 
     // ==========================================
     // 3. UCHYB (e)
@@ -1167,6 +1167,8 @@ void MainWindow::blockControls(){
     ui->btn_SIMULATION_stop->setEnabled(false);
     ui->btn_SIMULATION_reset->setEnabled(false);
 
+    ui->HorizontalSlider_ms_setup->setEnabled(false);
+    ui->spinBox_ms_setup->setEnabled(false);
 }
 
 void MainWindow::unblockControls(){
@@ -1185,5 +1187,8 @@ void MainWindow::unblockControls(){
     ui->input_setValue->setEnabled(true);
     ui->comboBox_GEN_function->setEnabled(true);
     ui->checkBox_setValue->setEnabled(true);
+
+    ui->HorizontalSlider_ms_setup->setEnabled(true);
+    ui->spinBox_ms_setup->setEnabled(true);
 
 }

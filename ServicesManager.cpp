@@ -11,10 +11,14 @@ ServicesManager::ServicesManager() {
     //sygnały sieciowe
     connect(m_networkManager.get(), &NetworkManager::peerConnected, this, [this](const QString& ip){
         emit peerConnectionChanged(true, ip);
+
+        // --- ZMIANA: Gdy serwer odbierze połączenie, od razu wysyła swój ARX do klienta ---
+        if (m_is_server_mode && m_uar) {
+            m_networkManager->sendPacket(NetProto::MsgType::CONFIG_ARX, m_uar->getARX().serializeConfig());
+            qDebug() << "Serwer podzielił się swoimi ustawieniami ARX z nowym klientem.";
+        }
     });
-    // connect(m_networkManager.get(), &NetworkManager::peerDisconnected, this, [this](){
-    //     emit peerConnectionChanged(false, "");
-    // });
+
 
     connect(m_networkManager.get(), &NetworkManager::peerDisconnected, this, [this](){
         m_is_server_mode = false;
@@ -65,14 +69,21 @@ ServicesManager::ServicesManager() {
 
     connect(m_networkManager.get(), &NetworkManager::genConfigReceived, this, [this](const QByteArray& payload){
         if(m_uar) {
-            m_uar->getFunctionGenerator().deserializeConfig(payload);
+            // 1. Odczytujemy oryginalną "ładną" częstotliwość (8 bajtów z przodu)
+            double requested_freq;
+            memcpy(&requested_freq, payload.constData(), sizeof(double));
+
+            // 2. Reszta to faktyczne dane generatora
+            QByteArray genData = payload.mid(sizeof(double));
+            m_uar->getFunctionGenerator().deserializeConfig(genData);
 
             m_gen_amplitude = m_uar->getFunctionGenerator().getAmplitude();
             m_gen_offset = m_uar->getFunctionGenerator().getOffset();
             m_gen_fill = m_uar->getFunctionGenerator().getSquareFilling();
             m_gen_type = m_uar->getFunctionGenerator().getType();
 
-            m_gen_frequency = (m_uar->getFunctionGenerator().getT() * m_gen_sample_ms) / 1000.0;
+            // Zamiast ułamków i błędów zaokrągleń, wpisujemy zadaną częstotliwość:
+            m_gen_frequency = requested_freq;
 
             emit networkConfigReceived();
         }
@@ -531,42 +542,48 @@ void ServicesManager::connectAndSendConfigAsClient(const QString& ip) {
 
     QTimer::singleShot(500, this, [this]() {
         if(m_uar && m_networkManager->isConnected()) {
-            // ARX
-            QByteArray arxPayload = m_uar->getARX().serializeConfig();
-            m_networkManager->sendPacket(NetProto::MsgType::CONFIG_ARX, arxPayload);
-            qDebug() << "Wysłano konfigurację ARX!";
+            // Klient po połączeniu wysyła tylko SWOJE ustawienia
 
-            // PID
             QByteArray pidPayload = m_uar->getRegulatorPID().serializeConfig();
             m_networkManager->sendPacket(NetProto::MsgType::CONFIG_PID, pidPayload);
-            qDebug() << "Wysłano konfigurację PID!";
 
-            // GENERATOR
             QByteArray genPayload = m_uar->getFunctionGenerator().serializeConfig();
-            m_networkManager->sendPacket(NetProto::MsgType::CONFIG_GEN, genPayload);
-            qDebug() << "Wysłano konfigurację Generatora!";
 
-            // --- NOWE: WYSYŁANIE STARTOWEGO INTERWAŁU ---
+            // Pakujemy naszą zadaną częstotliwość na sam początek paczki
+            genPayload.append(reinterpret_cast<const char*>(&m_gen_frequency), sizeof(double));
+            genPayload.append(m_uar->getFunctionGenerator().serializeConfig());
+
+            m_networkManager->sendPacket(NetProto::MsgType::CONFIG_GEN, genPayload);
+
+            m_networkManager->sendPacket(NetProto::MsgType::CONFIG_GEN, genPayload);
+
             QByteArray intervalData(reinterpret_cast<const char*>(&m_gen_sample_ms), sizeof(int));
             m_networkManager->sendPacket(NetProto::MsgType::CONFIG_INTERVAL, intervalData);
-            qDebug() << "Wysłano początkowy interwał symulacji (" << m_gen_sample_ms << "ms)!";
-
-        } else {
-            qDebug() << "Błąd: Nie udało się połączyć lub brak symulacji (UAR).";
         }
     });
 }
 
 void ServicesManager::broadcastConfiguration() {
-    // Sprawdzamy czy symulacja żyje i czy jesteśmy połączeni z drugą aplikacją
-    if (!m_uar || !m_networkManager || !m_networkManager->isConnected()) {
-        return;
+    if (!m_uar || !m_networkManager || !m_networkManager->isConnected()) return;
+
+    // --- ZMIANA: Każdy rozgłasza tylko to, czym zarządza! ---
+    if (m_is_server_mode) {
+        // Serwer rządzi wyłącznie modelem ARX
+        m_networkManager->sendPacket(NetProto::MsgType::CONFIG_ARX, m_uar->getARX().serializeConfig());
+    } else {
+        // Klient rządzi PIDem, Generatorem i czasem
+        m_networkManager->sendPacket(NetProto::MsgType::CONFIG_PID, m_uar->getRegulatorPID().serializeConfig());
+        // m_networkManager->sendPacket(NetProto::MsgType::CONFIG_GEN, m_uar->getFunctionGenerator().serializeConfig());
+
+        // Pakujemy naszą zadaną częstotliwość na sam początek paczki
+        QByteArray genPayload;
+        genPayload.append(reinterpret_cast<const char*>(&m_gen_frequency), sizeof(double));
+        genPayload.append(m_uar->getFunctionGenerator().serializeConfig());
+
+        m_networkManager->sendPacket(NetProto::MsgType::CONFIG_GEN, genPayload);
+
+        QByteArray intervalData(reinterpret_cast<const char*>(&m_gen_sample_ms), sizeof(int));
+        m_networkManager->sendPacket(NetProto::MsgType::CONFIG_INTERVAL, intervalData);
     }
-
-    // Wysyłamy paczki z nową konfiguracją
-    m_networkManager->sendPacket(NetProto::MsgType::CONFIG_ARX, m_uar->getARX().serializeConfig());
-    m_networkManager->sendPacket(NetProto::MsgType::CONFIG_PID, m_uar->getRegulatorPID().serializeConfig());
-    m_networkManager->sendPacket(NetProto::MsgType::CONFIG_GEN, m_uar->getFunctionGenerator().serializeConfig());
-
     qDebug() << "Rozgłoszono nową konfigurację przez sieć!";
 }
