@@ -96,14 +96,17 @@ void NetworkManager::sendPacket(NetProto::MsgType type, const QByteArray& payloa
     NetProto::PacketHeader header;
     header.totalSize = sizeof(NetProto::PacketHeader) + payload.size();
     header.type = type;
-    header.seqNum = seqNum; // Dla konfiguracji numer próbki nas na razie nie interesuje
+    header.seqNum = seqNum;
 
     QByteArray packet;
+    // --- NOWE: Natychmiastowa rezerwacja potrzebnej pamięci w RAM (Brak fragmentacji) ---
+    packet.reserve(header.totalSize);
+
     packet.append(reinterpret_cast<const char*>(&header), sizeof(NetProto::PacketHeader));
     packet.append(payload);
 
     m_socket->write(packet);
-    m_socket->flush(); // Natychmiastowe wypchnięcie danych w sieć
+    m_socket->flush();
 }
 
 void NetworkManager::onReadyRead() {
