@@ -11,18 +11,26 @@
 class NetworkDialog : public QDialog {
     Q_OBJECT
 public:
-    explicit NetworkDialog(QWidget *parent = nullptr);
+    // --- ZMODYFIKOWANE: Parametr isConnected ---
+    explicit NetworkDialog(bool isConnected = false, QWidget *parent = nullptr);
     bool isServer() const;
     QString getIpAddress() const;
+
+    // --- NOWE: Metoda sprawdzająca czy kliknięto rozłącz ---
+    bool wantsToDisconnect() const;
 
 private:
     QRadioButton *radioServer;
     QRadioButton *radioClient;
     QLineEdit *ipInput;
     QPushButton *btnConnect;
+    QPushButton *btnDisconnect; // <--- NOWE
+
     QLabel *localIpLabel;
 
-    void setupUi();
+    bool m_wantsToDisconnect; // <--- NOWE
+
+    void setupUi(bool isConnected); // Zmodyfikowana sygnatura
     QString getLocalIp();
 };
 

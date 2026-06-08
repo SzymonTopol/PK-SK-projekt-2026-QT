@@ -1053,18 +1053,42 @@ void MainWindow::on_checkBox_toggled(bool checked)
 
 void MainWindow::on_btn_INTERNET_clicked()
 {
-    NetworkDialog dialog(this);
+    ServicesManager &sm = ServicesManager::getInstance();
 
-    // Czekamy, aż użytkownik kliknie "Zatwierdź"
+    // Sprawdzamy czy coś aktualnie robimy w sieci (nasłuchujemy lub jesteśmy połączni)
+    bool isConnected = sm.getNetworkManager()->isConnected() || sm.isServerMode();
+
+    // Przekazujemy ten stan do naszego okienka
+    NetworkDialog dialog(isConnected, this);
+
+    // Czekamy, aż użytkownik kliknie któryś z przycisków
     if (dialog.exec() == QDialog::Accepted) {
+
+        // --- NOWE: Obsługa ręcznego rozłączenia ---
+        if (dialog.wantsToDisconnect()) {
+            if (sm.isServerMode()) {
+                sm.getNetworkManager()->stopServer(); // Zatrzymuje serwer i rozłącza klientów
+            } else {
+                sm.getNetworkManager()->disconnect(); // Odłącza nas od serwera
+            }
+
+            // UWAGA: Jeśli kliknięto rozłącz gdy Serwer dopiero nasłuchiwał
+            // (nikt się nie podłączył), sygnał peerDisconnected z socketa może nie polecieć.
+            // Zabezpieczamy się i sztucznie wywołujemy reset trybu na stacjonarny:
+            if (!sm.getNetworkManager()->isConnected()) {
+                onPeerConnectionChanged(false, "");
+            }
+            return; // Wychodzimy z funkcji, unikając kodu do łączenia poniżej
+        }
+
+        // --- STARA LOGIKA ŁĄCZENIA ---
         if (dialog.isServer()) {
             // Tryb Serwera (Obiekt)
-            ServicesManager::getInstance().setupAsServer();
+            sm.setupAsServer();
             ui->statusLabel->setText("🟢 Serwer nasłuchuje...");
 
             this->isConnectedAsClient = false;
 
-            // Zgodnie z instrukcją: Instancja obiektu blokuje wszystko oprócz kontrolki trybu i ARX
             blockControls();
             ui->btn_ARX_change_popup->setEnabled(true);
             ui->btn_ARX_change_popup_borders->setEnabled(true);
@@ -1072,12 +1096,11 @@ void MainWindow::on_btn_INTERNET_clicked()
         } else {
             // Tryb Klienta (Regulator)
             QString targetIp = dialog.getIpAddress();
-            ServicesManager::getInstance().connectAndSendConfigAsClient(targetIp);
+            sm.connectAndSendConfigAsClient(targetIp);
             ui->statusLabel->setText("🟡 Łączenie...");
 
             this->isConnectedAsClient = true;
 
-            // Zgodnie z instrukcją: Instancja regulatora ma wszystko odblokowane z wyjątkiem ARX
             unblockControls();
             ui->btn_ARX_change_popup->setEnabled(false);
             ui->btn_ARX_change_popup_borders->setEnabled(false);
