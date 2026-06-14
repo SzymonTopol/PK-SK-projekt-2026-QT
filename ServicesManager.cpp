@@ -93,23 +93,22 @@ ServicesManager::ServicesManager() {
     connect(m_networkManager.get(), &NetworkManager::tickRegulatorReceived, this, [this](double u, double w, uint32_t seqNum){
         if (m_uar && m_is_server_mode) {
 
-            // NOWE: Zabezpieczenie przed starymi ramkami (ignorujemy opóźnione pakiety)
+            // Zabezpieczenie przed starymi ramkami
             if (seqNum <= m_last_server_seq && seqNum != 0) {
                 qDebug() << "Serwer: Odrzucam starą ramkę! seqNum:" << seqNum;
                 return;
             }
             m_last_server_seq = seqNum;
 
-            // 1. Liczymy wyjście z obiektu
             double y = m_uar->run_server_calc(u);
 
-            // 2. Odesłanie 'y' do klienta
+            // Odesłanie 'y' do klienta
             NetProto::PayloadTickObject payload;
             payload.y = y;
             QByteArray data(reinterpret_cast<const char*>(&payload), sizeof(payload));
             m_networkManager->sendPacket(NetProto::MsgType::TICK_OBJECT, data, seqNum);
 
-            // 3. Wrzucenie do historii i rysowanie u siebie
+            // Wrzucenie do historii i rysowanie u siebie
             m_uar->commit_server_step(w, u, y, seqNum);
             emit SimulationUpdated();
         }
@@ -134,8 +133,6 @@ ServicesManager::ServicesManager() {
     connect(m_networkManager.get(), &NetworkManager::intervalConfigReceived, this, [this](int ms){
         m_gen_sample_ms = ms;
         m_timer->setInterval(ms);
-        // Wywołanie tego sygnału odpali Twoje UpdateUIAfterLoad() w MainWindow
-        // i pięknie zaktualizuje położenie suwaków u Serwera
         emit networkConfigReceived();
     });
 
