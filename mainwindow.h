@@ -142,11 +142,9 @@ private:
     QLineSeries *seriesD;
 
 
-
-    // W sekcji private podmień te dwie linijki:
     QScatterSeries* seriesDroppedMain;
     QScatterSeries* seriesDroppedY;
-    bool m_is_sync_dropped = false; // Zapamiętuje stan z sygnału
+    bool m_is_sync_dropped = false;
 
 };
 #endif // MAINWINDOW_H

@@ -12,7 +12,6 @@ ServicesManager::ServicesManager() {
     connect(m_networkManager.get(), &NetworkManager::peerConnected, this, [this](const QString& ip){
         emit peerConnectionChanged(true, ip);
 
-        // --- ZMIANA: Gdy serwer odbierze połączenie, od razu wysyła swój ARX do klienta ---
         if (m_is_server_mode && m_uar) {
             m_networkManager->sendPacket(NetProto::MsgType::CONFIG_ARX, m_uar->getARX().serializeConfig());
             qDebug() << "Serwer podzielił się swoimi ustawieniami ARX z nowym klientem.";
@@ -29,7 +28,6 @@ ServicesManager::ServicesManager() {
         m_drop_history.clear();
         m_drops_in_history = 0;
 
-        // --- NOWE: Jeśli przed awarią internetu symulacja działała, to wznów lokalny zegar! ---
         if (m_logical_is_running) {
             if (m_timer->interval() <= 0) m_timer->setInterval(m_gen_sample_ms);
             m_timer->start();
@@ -69,11 +67,9 @@ ServicesManager::ServicesManager() {
 
     connect(m_networkManager.get(), &NetworkManager::genConfigReceived, this, [this](const QByteArray& payload){
         if(m_uar) {
-            // 1. Odczytujemy oryginalną "ładną" częstotliwość (8 bajtów z przodu)
             double requested_freq;
             memcpy(&requested_freq, payload.constData(), sizeof(double));
 
-            // 2. Reszta to faktyczne dane generatora
             QByteArray genData = payload.mid(sizeof(double));
             m_uar->getFunctionGenerator().deserializeConfig(genData);
 
@@ -82,7 +78,6 @@ ServicesManager::ServicesManager() {
             m_gen_fill = m_uar->getFunctionGenerator().getSquareFilling();
             m_gen_type = m_uar->getFunctionGenerator().getType();
 
-            // Zamiast ułamków i błędów zaokrągleń, wpisujemy zadaną częstotliwość:
             m_gen_frequency = requested_freq;
 
             emit networkConfigReceived();
@@ -117,7 +112,6 @@ ServicesManager::ServicesManager() {
     // ODBIÓR NA KLIENCIE
     connect(m_networkManager.get(), &NetworkManager::tickObjectReceived, this, [this](double y, uint32_t seqNum){
         if (m_uar && !m_is_server_mode) {
-            // Czy odpowiedź dotyczy obecnego kroku?
             if (seqNum == m_current_step - 1) {
                 m_received_y_for_current_step = true;
                 m_last_known_y = y;
@@ -150,7 +144,6 @@ void ServicesManager::setSimulationInterval(int ms) {
     m_gen_sample_ms = ms;
     m_timer->setInterval(ms);
 
-    // Jeśli jesteśmy KLIENTEM i jesteśmy połączeni, powiadamiamy serwer o nowym czasie
     if (m_networkManager && m_networkManager->isConnected() && !m_is_server_mode) {
         QByteArray data(reinterpret_cast<const char*>(&ms), sizeof(int));
         m_networkManager->sendPacket(NetProto::MsgType::CONFIG_INTERVAL, data);
@@ -158,13 +151,12 @@ void ServicesManager::setSimulationInterval(int ms) {
 }
 
 bool ServicesManager::isSimulationRunning() const {
-    return m_logical_is_running; // Teraz GUI zawsze wie, czy symulacja powinna działać
+    return m_logical_is_running;
 }
 
 void ServicesManager::startSimulation() {
-    m_logical_is_running = true; // Zapisujemy stan
+    m_logical_is_running = true;
 
-    // Serwer w trybie sieciowym NIE może włączyć lokalnego timera!
     if (!m_is_server_mode) {
         if (!m_timer->isActive()) {
             if (m_timer->interval() <= 0) m_timer->setInterval(m_gen_sample_ms);
@@ -174,7 +166,7 @@ void ServicesManager::startSimulation() {
 }
 
 void ServicesManager::stopSimulation() {
-    m_logical_is_running = false; // Zapisujemy stan
+    m_logical_is_running = false;
     if (m_timer->isActive()) {
         m_timer->stop();
     }
@@ -202,7 +194,7 @@ void ServicesManager::runNextStep() {
         return;
     }
 
-    // 2. TRYB SIECIOWY - SERWER (Ignoruje uderzenia lokalnego timera!)
+    // 2. TRYB SIECIOWY - SERWER (Ignoruje uderzenia lokalnego timera)
     if (m_is_server_mode) {
         return;
     }
@@ -211,9 +203,6 @@ void ServicesManager::runNextStep() {
     // Sprawdzamy czy poprzedni pakiet zdążył wrócić
     bool current_frame_dropped = (!m_received_y_for_current_step && m_current_step > 0);
 
-    // =========================================================
-    // NOWE: Mechanizm Okna Przesuwnego (ostatnie 5 sekund)
-    // =========================================================
     int window_size = 5000 / (m_gen_sample_ms > 0 ? m_gen_sample_ms : 100); // Zabezpieczenie przed dzieleniem przez 0
 
     m_drop_history.push_back(current_frame_dropped);
@@ -227,9 +216,8 @@ void ServicesManager::runNextStep() {
     }
 
     // Sprawdzamy, czy spadliśmy poniżej 60% odebranych pakietów
-    // (czyli czy ilość zgubionych ramek przekracza 40% wielkości okna)
     bool too_many_drops_overall = (m_drop_history.size() == window_size) && (m_drops_in_history > window_size * 0.40);
-    // =========================================================
+    // ======================================
 
     if (current_frame_dropped) {
         emit syncStatusChanged(false);
@@ -246,7 +234,6 @@ void ServicesManager::runNextStep() {
 
             m_networkManager->disconnect();
 
-            // Wychodzimy, czyszczenie i tak zrobi lambda peerDisconnected
             return;
         }
 
@@ -488,10 +475,8 @@ void ServicesManager::testSerialization() {
         return;
     }
 
-    // 1. Zapisujemy obecny stan ARX do QByteArray (symulujemy NADAWCĘ)
     QByteArray payload = m_uar->getARX().serializeConfig();
 
-    // Budujemy nagłówek tak, jakbyśmy wysyłali to przez sieć
     NetProto::PacketHeader header;
     header.totalSize = sizeof(NetProto::PacketHeader) + payload.size();
     header.type = NetProto::MsgType::CONFIG_ARX;
@@ -503,21 +488,17 @@ void ServicesManager::testSerialization() {
 
     qDebug() << "Paczka gotowa! Rozmiar całkowity:" << packet.size() << "bajtów.";
 
-    // 2. Symulujemy przesył... Psujemy lokalnego ARXa, żeby udowodnić, że odzyskamy dane z paczki!
     std::vector<double> fakeA = {999.9, 999.9};
     m_uar->getARX().setA(fakeA);
     m_uar->getARX().setK(999);
     qDebug() << "Zepsuto ARXa. Zaraz spróbujemy go odzyskać z paczki binarnej...";
 
-    // 3. Odbiór (symulujemy działanie onReadyRead z NetworkManager)
     NetProto::PacketHeader receivedHeader;
     memcpy(&receivedHeader, packet.data(), sizeof(NetProto::PacketHeader));
 
     if (receivedHeader.type == NetProto::MsgType::CONFIG_ARX) {
-        // Wycinamy sam payload (wszystko po nagłówku)
         QByteArray receivedPayload = packet.mid(sizeof(NetProto::PacketHeader));
 
-        // Przywracamy dane z paczki do naszego ARXa
         m_uar->getARX().deserializeConfig(receivedPayload);
         qDebug() << "Odzyskano dane ARX z paczki binarnej!";
     }
@@ -546,7 +527,7 @@ void ServicesManager::connectAndSendConfigAsClient(const QString& ip) {
 
             QByteArray genPayload = m_uar->getFunctionGenerator().serializeConfig();
 
-            // Pakujemy naszą zadaną częstotliwość na sam początek paczki
+            // Pakujemy zadaną częstotliwość na sam początek paczki
             genPayload.append(reinterpret_cast<const char*>(&m_gen_frequency), sizeof(double));
             genPayload.append(m_uar->getFunctionGenerator().serializeConfig());
 
@@ -563,16 +544,14 @@ void ServicesManager::connectAndSendConfigAsClient(const QString& ip) {
 void ServicesManager::broadcastConfiguration() {
     if (!m_uar || !m_networkManager || !m_networkManager->isConnected()) return;
 
-    // --- ZMIANA: Każdy rozgłasza tylko to, czym zarządza! ---
     if (m_is_server_mode) {
         // Serwer rządzi wyłącznie modelem ARX
         m_networkManager->sendPacket(NetProto::MsgType::CONFIG_ARX, m_uar->getARX().serializeConfig());
     } else {
         // Klient rządzi PIDem, Generatorem i czasem
         m_networkManager->sendPacket(NetProto::MsgType::CONFIG_PID, m_uar->getRegulatorPID().serializeConfig());
-        // m_networkManager->sendPacket(NetProto::MsgType::CONFIG_GEN, m_uar->getFunctionGenerator().serializeConfig());
 
-        // Pakujemy naszą zadaną częstotliwość na sam początek paczki
+        // Pakujemy zadaną częstotliwość na sam początek paczki
         QByteArray genPayload;
         genPayload.append(reinterpret_cast<const char*>(&m_gen_frequency), sizeof(double));
         genPayload.append(m_uar->getFunctionGenerator().serializeConfig());

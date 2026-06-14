@@ -52,9 +52,6 @@ public:
     // Metoda resetuj�ca stan wewn�trzny regulatora
     void reset();
 
-    // Dodane do sieci
-
-
 
     QByteArray serializeConfig() const;
     void deserializeConfig(const QByteArray& buf);

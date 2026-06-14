@@ -12,7 +12,6 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
-    // Ukrywamy dolny pasek, bo lampkę statusu masz teraz ładnie w menu bocznym
     ui->statusbar->hide();
     this->setMinimumSize(1200, 770);
 
@@ -351,7 +350,6 @@ void MainWindow::on_btn_SIMULATION_start_clicked()
     sm.setManualSetpoint(ui->input_setValue->value());
     sm.startSimulation();
 
-    // --- NOWE: Zabezpieczenie przed odblokowaniem u Serwera ---
     bool isConnectedServer = sm.getNetworkManager()->isConnected() && sm.isServerMode();
     if (!isConnectedServer) {
         ui->btn_SIMULATION_start->setEnabled(false);
@@ -360,7 +358,6 @@ void MainWindow::on_btn_SIMULATION_start_clicked()
 
     qDebug() << "Symulacja uruchomiona";
 
-    // --- NOWE: Wysłanie w sieć START ---
     if (this->isConnectedAsClient) {
         NetProto::PayloadSimCtrl cmdPayload;
         cmdPayload.command = NetProto::SimCommand::START;
@@ -374,7 +371,6 @@ void MainWindow::on_btn_SIMULATION_stop_clicked()
     ServicesManager &sm = ServicesManager::getInstance();
     sm.stopSimulation();
 
-    // --- NOWE: Zabezpieczenie przed odblokowaniem u Serwera ---
     bool isConnectedServer = sm.getNetworkManager()->isConnected() && sm.isServerMode();
     if (!isConnectedServer) {
         ui->btn_SIMULATION_start->setEnabled(true);
@@ -383,7 +379,6 @@ void MainWindow::on_btn_SIMULATION_stop_clicked()
 
     qDebug() << "Symulacja zatrzymana";
 
-    // --- NOWE: Wysłanie w sieć STOP ---
     if (this->isConnectedAsClient) {
         NetProto::PayloadSimCtrl cmdPayload;
         cmdPayload.command = NetProto::SimCommand::STOP;
@@ -407,10 +402,10 @@ void MainWindow::on_btn_SIMULATION_reset_clicked()
     // 4. Czyszczenie danych z wykresów (serii)
     if(seriesSetpoint) seriesSetpoint->clear();
     if(seriesOutputMain) seriesOutputMain->clear();
-    if(seriesDroppedMain) seriesDroppedMain->clear(); // <-- NOWE
+    if(seriesDroppedMain) seriesDroppedMain->clear();
 
     if(seriesY) seriesY->clear();
-    if(seriesDroppedY) seriesDroppedY->clear();       // <-- NOWE
+    if(seriesDroppedY) seriesDroppedY->clear();
 
     // Uchyb
     if(seriesE) seriesE->clear();
@@ -441,15 +436,12 @@ void MainWindow::on_btn_SIMULATION_reset_clicked()
     m_is_sync_dropped = false; // Reset flagi przy ręcznym restarcie
     qDebug() << "Symulacja i wszystkie wykresy zresetowane";
 
-    // --- NOWE: WYSYŁANIE KOMENDY W SIEĆ ---
-    // Wysyłamy tylko, jeśli jesteśmy Klientem (Regulatorem), który rządzi
     if (isConnectedAsClient) {
         NetProto::PayloadSimCtrl cmdPayload;
         cmdPayload.command = NetProto::SimCommand::RESET;
 
         QByteArray payloadData(reinterpret_cast<const char*>(&cmdPayload), sizeof(cmdPayload));
 
-        // Wywołujemy sendPacket (tutaj używam ServicesManager, musisz dodać taką metodę lub bezpośrednio zawołać NetworkManager)
         ServicesManager::getInstance().getNetworkManager()->sendPacket(NetProto::MsgType::SIM_CTRL, payloadData, 0);
         qDebug() << "Wysłano komendę RESET do Obiektu.";
     }
@@ -469,8 +461,6 @@ void MainWindow::hardResetApp()
     sm.setArxBorders({-1.0, 1.0}, {-1.0, 1.0});
 
     simulation_time_s = 0.0;
-
-    // --- Aktualizacja widoku GUI (według test.json) ---
 
     // PID
     ui->input_PID_k->setValue(0.5);
@@ -617,7 +607,6 @@ void MainWindow::updateCharts()
     if(seriesSetpoint->count() > maxPoints) {
         seriesSetpoint->removePoints(0, 1);
         seriesOutputMain->removePoints(0, 1);
-        // USUNIĘTO: seriesDroppedMain->removePoints(0, 1);
     }
     if(seriesP->count() > maxPoints) {
         seriesP->removePoints(0, 1);
@@ -626,14 +615,11 @@ void MainWindow::updateCharts()
     }
     if(seriesY->count() > maxPoints) {
         seriesY->removePoints(0, 1);
-        // USUNIĘTO: seriesDroppedY->removePoints(0, 1);
     }
     if(seriesE->count() > maxPoints) {
         seriesE->removePoints(0, 1);
     }
 
-    // TUTAJ WKLEJ TEN MÓJ NOWY BEZPIECZNY BLOK DLA CZERWONYCH SERII Z POPRZEDNIEJ WIADOMOŚCI:
-    // --- BEZPIECZNE czyszczenie czerwonych kropek ---
     double min_x = time_s - time_window_s;
 
     // Główny wykres
@@ -656,13 +642,8 @@ void MainWindow::updateCharts()
         seriesDroppedY->removePoints(0, pointsToRemoveY);
     }
 
-
-
     // --- Aktualizacja osi X (przesuwanie okna) ---
     updateAllXAxesRange(time_s);
-
-    // --- INTELIGENTNE SKALOWANIE Y ---
-    // Wywołujemy dopiero po aktualizacji osi X i dodaniu punktów!
 
     // 1. Wykres główny (zawiera dwie serie: Setpoint i Output)
     autoScaleYAxis(axisX_Main, axisY_Main, {seriesSetpoint, seriesOutputMain});
@@ -754,7 +735,7 @@ void MainWindow::setupCharts()
     seriesOutputMain->setName("Wyjście (y)");
     seriesOutputMain->setPen(QPen(Qt::blue, 1));
 
-    // NOWE: Seria punktowa dla gubienia pakietów
+    // Seria punktowa dla gubienia pakietów
     seriesDroppedMain = new QScatterSeries();
     seriesDroppedMain->setName("Gubienie Pakietu");
     seriesDroppedMain->setMarkerShape(QScatterSeries::MarkerShapeCircle);
@@ -765,7 +746,7 @@ void MainWindow::setupCharts()
     QChart *chartMain = new QChart();
     chartMain->addSeries(seriesSetpoint);
     chartMain->addSeries(seriesOutputMain);
-    chartMain->addSeries(seriesDroppedMain); // <--- DODANE
+    chartMain->addSeries(seriesDroppedMain);
     chartMain->setMargins(QMargins(0, 0, 0, 0));
     chartMain->layout()->setContentsMargins(0, 0, 0, 0);
     chartMain->setBackgroundRoundness(0);
@@ -778,7 +759,7 @@ void MainWindow::setupCharts()
     chartMain->addAxis(axisX_Main, Qt::AlignBottom);
     seriesSetpoint->attachAxis(axisX_Main);
     seriesOutputMain->attachAxis(axisX_Main);
-    seriesDroppedMain->attachAxis(axisX_Main); // <--- DODANE
+    seriesDroppedMain->attachAxis(axisX_Main);
 
     axisY_Main = new QValueAxis();
     axisY_Main->setRange(-2, 2);
@@ -787,7 +768,7 @@ void MainWindow::setupCharts()
     chartMain->addAxis(axisY_Main, Qt::AlignLeft);
     seriesSetpoint->attachAxis(axisY_Main);
     seriesOutputMain->attachAxis(axisY_Main);
-    seriesDroppedMain->attachAxis(axisY_Main); // <--- DODANE
+    seriesDroppedMain->attachAxis(axisY_Main);
 
     ui->graphicsView_main->setChart(chartMain);
     ui->graphicsView_main->setRenderHint(QPainter:: Antialiasing);
@@ -800,7 +781,6 @@ void MainWindow::setupCharts()
     seriesY->setName("Wyjście (y)");
     seriesY->setPen(QPen(Qt::blue, 1));
 
-    // NOWE: Seria punktowa dla gubienia pakietów
     seriesDroppedY = new QScatterSeries();
     seriesDroppedY->setName("Gubienie Pakietu");
     seriesDroppedY->setMarkerShape(QScatterSeries::MarkerShapeCircle);
@@ -810,7 +790,7 @@ void MainWindow::setupCharts()
 
     QChart *chartY = new QChart();
     chartY->addSeries(seriesY);
-    chartY->addSeries(seriesDroppedY); // <--- DODANE
+    chartY->addSeries(seriesDroppedY);
     chartY->setMargins(QMargins(0, 0, 0, 0));
     chartY->layout()->setContentsMargins(0, 0, 0, 0);
     chartY->setBackgroundRoundness(0);
@@ -822,7 +802,7 @@ void MainWindow::setupCharts()
     axisX_Y->setTickCount(6);
     chartY->addAxis(axisX_Y, Qt::AlignBottom);
     seriesY->attachAxis(axisX_Y);
-    seriesDroppedY->attachAxis(axisX_Y); // <--- DODANE
+    seriesDroppedY->attachAxis(axisX_Y);
 
     axisY_Y = new QValueAxis();
     axisY_Y->setRange(-2, 2);
@@ -830,7 +810,7 @@ void MainWindow::setupCharts()
     axisY_Y->setTickCount(5);
     chartY->addAxis(axisY_Y, Qt:: AlignLeft);
     seriesY->attachAxis(axisY_Y);
-    seriesDroppedY->attachAxis(axisY_Y); // <--- DODANE
+    seriesDroppedY->attachAxis(axisY_Y);
 
     ui->graphicsView_2->setChart(chartY);
     ui->graphicsView_2->setRenderHint(QPainter::Antialiasing);
@@ -1064,24 +1044,19 @@ void MainWindow::on_btn_INTERNET_clicked()
     // Czekamy, aż użytkownik kliknie któryś z przycisków
     if (dialog.exec() == QDialog::Accepted) {
 
-        // --- NOWE: Obsługa ręcznego rozłączenia ---
         if (dialog.wantsToDisconnect()) {
             if (sm.isServerMode()) {
-                sm.getNetworkManager()->stopServer(); // Zatrzymuje serwer i rozłącza klientów
+                sm.getNetworkManager()->stopServer();
             } else {
-                sm.getNetworkManager()->disconnect(); // Odłącza nas od serwera
+                sm.getNetworkManager()->disconnect();
             }
 
-            // UWAGA: Jeśli kliknięto rozłącz gdy Serwer dopiero nasłuchiwał
-            // (nikt się nie podłączył), sygnał peerDisconnected z socketa może nie polecieć.
-            // Zabezpieczamy się i sztucznie wywołujemy reset trybu na stacjonarny:
             if (!sm.getNetworkManager()->isConnected()) {
                 onPeerConnectionChanged(false, "");
             }
-            return; // Wychodzimy z funkcji, unikając kodu do łączenia poniżej
+            return;
         }
 
-        // --- STARA LOGIKA ŁĄCZENIA ---
         if (dialog.isServer()) {
             // Tryb Serwera (Obiekt)
             sm.setupAsServer();
@@ -1121,7 +1096,6 @@ void MainWindow::onPeerConnectionChanged(bool connected, const QString& ip)
         ui->btn_ARX_change_popup->setEnabled(true);
         ui->btn_ARX_change_popup_borders->setEnabled(true);
 
-        // Sprawdzamy, czy symulacja leci, żeby nie odblokować guzika "Start", jeśli jest już uruchomiona
         bool isRunning = ServicesManager::getInstance().isSimulationRunning();
         ui->btn_SIMULATION_start->setEnabled(!isRunning);
         ui->btn_SIMULATION_stop->setEnabled(isRunning);
@@ -1132,9 +1106,9 @@ void MainWindow::onPeerConnectionChanged(bool connected, const QString& ip)
                                               "Zerwano połączenie sieciowe. Aplikacja wraca do trybu stacjonarnego.",
                                               QMessageBox::Ok,
                                               this);
-        msgBox->setWindowModality(Qt::NonModal);    // Zdejmujemy blokadę głównego okna!
-        msgBox->setAttribute(Qt::WA_DeleteOnClose); // Qt samo posprząta pamięć po zamknięciu okienka
-        msgBox->show();                             // show() zamiast exec()
+        msgBox->setWindowModality(Qt::NonModal);
+        msgBox->setAttribute(Qt::WA_DeleteOnClose);
+        msgBox->show();
         m_is_sync_dropped = false; // Reset flagi po zerwaniu
     }
 }

@@ -4,7 +4,6 @@
 #include <QNetworkInterface>
 #include <QHostAddress>
 
-// --- ZMODYFIKOWANE: Konstruktor przyjmuje isConnected i inicjalizuje flagę ---
 NetworkDialog::NetworkDialog(bool isConnected, QWidget *parent)
     : QDialog(parent), m_wantsToDisconnect(false)
 {
@@ -17,10 +16,9 @@ NetworkDialog::NetworkDialog(bool isConnected, QWidget *parent)
 
     connect(btnConnect, &QPushButton::clicked, this, &QDialog::accept);
 
-    // --- NOWE: Akcja dla przycisku Rozłącz ---
     connect(btnDisconnect, &QPushButton::clicked, this, [this](){
         m_wantsToDisconnect = true;
-        accept(); // Zamykamy okno, ale m_wantsToDisconnect powie MainWindow co robić
+        accept();
     });
 }
 
@@ -46,14 +44,12 @@ void NetworkDialog::setupUi(bool isConnected) {
     localIpLabel = new QLabel("Lokalne IP: <b>" + getLocalIp() + "</b>", this);
     mainLayout->addWidget(localIpLabel);
 
-    // --- NOWE: Układ przycisków na dole okna ---
     QHBoxLayout *btnLayout = new QHBoxLayout();
     btnConnect = new QPushButton("Zatwierdź / Połącz", this);
     btnDisconnect = new QPushButton("Rozłącz", this);
 
-    // Zabezpieczenia (odporność na miss-click z instrukcji)
-    btnConnect->setDisabled(isConnected);    // Nie łączymy 2x jeśli już jesteśmy
-    btnDisconnect->setEnabled(isConnected);  // Rozłączyć można się tylko, gdy jesteśmy w sieci
+    btnConnect->setDisabled(isConnected);
+    btnDisconnect->setEnabled(isConnected);
 
     btnLayout->addWidget(btnConnect);
     btnLayout->addWidget(btnDisconnect);

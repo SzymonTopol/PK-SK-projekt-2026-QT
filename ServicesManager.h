@@ -188,7 +188,7 @@ private:
     void broadcastConfiguration();
 
     bool m_is_server_mode = false;
-     bool m_logical_is_running = false; // <--- NOWE
+     bool m_logical_is_running = false;
     bool m_received_y_for_current_step = true; // Flaga wyrabiania się
     double m_last_known_y = 0.0;
     ClientTickData m_last_client_tick;

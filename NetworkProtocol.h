@@ -26,7 +26,7 @@ enum class SimCommand : uint8_t {
 // Nagłówek każdej ramki
 struct PacketHeader {
     uint32_t totalSize; // Rozmiar całego pakietu (nagłówek + payload)
-    MsgType type;       // Typ wiadomości
+    MsgType type;
     uint32_t seqNum;    // Numer sekwencyjny próbki (do synchronizacji i opóźnień)
 };
 
@@ -47,6 +47,6 @@ struct PayloadSimCtrl {
 
 #pragma pack(pop)
 
-} // namespace NetProto
+}
 
 #endif // NETWORKPROTOCOL_H

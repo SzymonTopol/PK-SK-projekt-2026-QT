@@ -70,7 +70,6 @@ void NetworkManager::disconnect() {
 
 void NetworkManager::onConnected() {
     qDebug() << "Połączono z serwerem pomyślnie!";
-    // emit peerConnected(m_socket->peerAddress().toString());
 
     m_socket->setSocketOption(QAbstractSocket::LowDelayOption, 1); // Wyłącza Nagle'a
     emit peerConnected(m_socket->peerAddress().toString());
@@ -99,7 +98,6 @@ void NetworkManager::sendPacket(NetProto::MsgType type, const QByteArray& payloa
     header.seqNum = seqNum;
 
     QByteArray packet;
-    // --- NOWE: Natychmiastowa rezerwacja potrzebnej pamięci w RAM (Brak fragmentacji) ---
     packet.reserve(header.totalSize);
 
     packet.append(reinterpret_cast<const char*>(&header), sizeof(NetProto::PacketHeader));
@@ -161,7 +159,6 @@ void NetworkManager::onReadyRead() {
             NetProto::PayloadSimCtrl p;
             memcpy(&p, payload.constData(), sizeof(p)); // Kopiujemy bajty z payloadu do struktury
 
-            // Emitujemy sygnał dalej (pamiętaj dodać go w NetworkManager.h i ServicesManager!)
             emit simCommandReceived(p.command);
             break;
         }
